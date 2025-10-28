@@ -8,7 +8,7 @@ from adaptive_mask import compute_energy_mask
 def demo_basic():
     cover = "../data/original/sample.wav"   # put a WAV here (16-bit)
     out = "../data/stego/stego.wav"
-    message = b"Hello Hawi! This is a secret."
+    message = b"Hello! This is a secret."
     # compute map using adaptive energy masking
     mask = compute_energy_mask(cover, frame_size=2048, hop_size=1024, percentile=55)
     # embed
