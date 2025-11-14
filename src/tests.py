@@ -1,7 +1,7 @@
 # tests.py
-from embed import embed_lsb
-from extract import extract_lsb
-from adaptive_mask import compute_energy_mask
+from src.embed import embed_lsb
+from src.extract import extract_lsb
+from src.adaptive_mask import compute_energy_mask
 # If you have encrypt, import and use it
 # from encrypt import aes_encrypt, aes_decrypt
 
