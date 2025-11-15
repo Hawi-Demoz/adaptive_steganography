@@ -45,7 +45,8 @@ Why this works:
   - `src/metrics.py`: `compute_snr_db`, `compute_ber`.
   - `src/visualize.py`: Plotting functions (waveform/spectrogram/energy/random/SNR/BER/heatmap).
   - `src/viz_demo.py`: Demo script to generate all figures.
-  - `requirements.txt`: numpy, soundfile, pycryptodome, matplotlib, scipy.
+  - `src/live_view.py`: Live spectrogram playback with moving cursor; optional cover vs stego compare.
+  - `requirements.txt`: numpy, soundfile, pycryptodome, matplotlib, scipy, sounddevice.
 - Updated:
   - `src/embed.py`: Added `embed_adaptive_keyed(...)` (AES + keyed adaptive indices).
   - `src/extract.py`: Added `extract_adaptive_keyed(...)` (header-first, AES decrypt).
