@@ -1,7 +1,9 @@
 # embed.py
-# Usage: import and call embed_lsb(cover_path, payload_bytes, out_path, key_frames=None)
+# Provides simple sequential LSB embedding and an adaptive keyed variant.
 import soundfile as sf
 import numpy as np
+from .keyed_adaptive import generate_order_indices
+from .encrypt import aes_encrypt
 
 PREAMBLE = b"ASTG"  # 4 bytes to identify start
 
@@ -47,3 +49,62 @@ def embed_lsb(cover_wav_path: str, payload_bytes: bytes, out_wav_path: str, embe
 
     sf.write(out_wav_path, flat, sr, subtype='PCM_16')
     print(f"Embedded {len(payload_bytes)} bytes into {out_wav_path} (samples used: {bits.size})")
+
+
+def _read_wav_mono_int16(path: str):
+    data, sr = sf.read(path, dtype='int16')
+    if data.ndim == 2:
+        data = data[:, 0]
+    return data.astype(np.int16), sr
+
+
+def _capacity_from_order(order_len: int) -> int:
+    overhead_bits = (len(PREAMBLE) + 4) * 8  # 64 bits
+    return max(0, order_len - overhead_bits) // 8
+
+
+def embed_adaptive_keyed(
+    cover_wav_path: str,
+    plaintext: bytes,
+    out_wav_path: str,
+    user_key: bytes,
+    frame_size: int = 1024,
+    hop_size: int = 512,
+    energy_percentile: float = 0.0,
+    encrypt: bool = True,
+):
+    """
+    Adaptive, key-based embedding.
+    - Builds deterministic ordering of sample indices based on key and energy.
+    - Optionally encrypts the plaintext with AES-CBC using a key derived from user_key (caller provides raw bytes for AES).
+    - Embeds PREAMBLE + 4-byte length + payload.
+    Requirements: WAV PCM 16-bit mono (stereo will be reduced to first channel).
+    """
+    data, sr = _read_wav_mono_int16(cover_wav_path)
+    order = generate_order_indices(
+        cover_wav_path,
+        key=user_key,
+        frame_size=frame_size,
+        hop_size=hop_size,
+        energy_percentile=energy_percentile,
+    )
+
+    payload = aes_encrypt(plaintext, user_key) if encrypt else plaintext
+
+    length_bytes = len(payload).to_bytes(4, 'big')
+    full_payload = PREAMBLE + length_bytes + payload
+    bits = _bytes_to_bits(full_payload)
+
+    if bits.size > order.size:
+        max_bytes = _capacity_from_order(order.size)
+        raise ValueError(
+            f"Payload too large. Capacity ~{max_bytes} bytes under current settings; got {len(payload)} bytes."
+        )
+
+    indices = order[:bits.size]
+    flat = data.copy()
+    flat[indices] = (flat[indices] & ~1) | bits.astype(np.int16)
+    sf.write(out_wav_path, flat, sr, subtype='PCM_16')
+    print(
+        f"Embedded (adaptive+keyed) {len(payload)} bytes into {out_wav_path} (samples used: {bits.size})"
+    )

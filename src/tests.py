@@ -1,21 +1,41 @@
 # tests.py
-from src.embed import embed_lsb
-from src.extract import extract_lsb
-from src.adaptive_mask import compute_energy_mask
-# If you have encrypt, import and use it
-# from encrypt import aes_encrypt, aes_decrypt
+from pathlib import Path
+import hashlib
 
-def demo_basic():
-    cover = "../data/original/sample.wav"   # put a WAV here (16-bit)
-    out = "../data/stego/stego.wav"
-    message = b"Hello! This is a secret."
-    # compute map using adaptive energy masking
-    mask = compute_energy_mask(cover, frame_size=2048, hop_size=1024, percentile=55)
-    # embed
-    embed_lsb(cover, message, out, embed_map=mask)
-    # extract
-    recovered = extract_lsb(out, max_payload_bytes=200)
+from src.embed import embed_adaptive_keyed
+from src.extract import extract_adaptive_keyed
+from src.metrics import compute_snr_db
+
+
+def demo_adaptive_keyed():
+    cover = str(Path(__file__).parent.parent / "data" / "original" / "file_example_WAV_1MG.wav")
+    out = str(Path(__file__).parent.parent / "data" / "stego" / "stego.wav")
+    message = "Hello! This is a secret for testing.".encode('utf-8')
+    key_str = "correct horse battery staple"
+    key_bytes = hashlib.sha256(key_str.encode('utf-8')).digest()[:16]
+
+    embed_adaptive_keyed(
+        cover_wav_path=cover,
+        plaintext=message,
+        out_wav_path=out,
+        user_key=key_bytes,
+        frame_size=1024,
+        hop_size=512,
+        energy_percentile=20.0,
+        encrypt=True,
+    )
+    recovered = extract_adaptive_keyed(
+        stego_wav_path=out,
+        user_key=key_bytes,
+        frame_size=1024,
+        hop_size=512,
+        energy_percentile=20.0,
+        decrypt=True,
+    )
     print("Recovered:", recovered)
+    print("Matches:", recovered == message)
+    snr = compute_snr_db(cover, out)
+    print(f"SNR: {snr:.2f} dB")
 
 if __name__ == "__main__":
-    demo_basic()
+    demo_adaptive_keyed()

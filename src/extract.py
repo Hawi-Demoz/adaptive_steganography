@@ -1,6 +1,8 @@
 # extract.py
 import soundfile as sf
 import numpy as np
+from .keyed_adaptive import generate_order_indices
+from .encrypt import aes_decrypt
 
 PREAMBLE = b"ASTG"
 
@@ -39,4 +41,64 @@ def extract_lsb(stego_wav_path: str, max_payload_bytes=5000, embed_map=None):
         return None
     payload = bytes_all[data_start:data_end]
     print(f"Extracted payload of length {length} bytes.")
+    return payload
+
+
+def _read_wav_mono_int16(path: str):
+    data, sr = sf.read(path, dtype='int16')
+    if data.ndim == 2:
+        data = data[:, 0]
+    return data.astype(np.int16), sr
+
+
+def extract_adaptive_keyed(
+    stego_wav_path: str,
+    user_key: bytes,
+    frame_size: int = 1024,
+    hop_size: int = 512,
+    energy_percentile: float = 0.0,
+    decrypt: bool = True,
+    max_total_bytes_hint: int | None = None,
+):
+    """
+    Reverse of embed_adaptive_keyed. Uses the same deterministic ordering to read bits.
+    Steps:
+      - Generate order indices using key and energy.
+      - Read first 64 bits to get PREAMBLE + length.
+      - Read the remaining bits based on length.
+      - Optionally AES-decrypt using user_key.
+    """
+    data, _ = _read_wav_mono_int16(stego_wav_path)
+    order = generate_order_indices(
+        stego_wav_path,
+        key=user_key,
+        frame_size=frame_size,
+        hop_size=hop_size,
+        energy_percentile=energy_percentile,
+    )
+
+    # Read header (64 bits)
+    header_bits = (data[order[:64]] & 1).astype(np.uint8)
+    header_bytes = _bits_to_bytes(header_bits)
+    if not header_bytes.startswith(PREAMBLE):
+        print("Preamble not found in header.")
+        return None
+    length = int.from_bytes(header_bytes[len(PREAMBLE):len(PREAMBLE)+4], 'big')
+
+    total_bits = 64 + length * 8
+    if total_bits > order.size:
+        print("Indicated payload exceeds capacity.")
+        return None
+
+    bits = (data[order[:total_bits]] & 1).astype(np.uint8)
+    bytes_all = _bits_to_bytes(bits)
+    payload = bytes_all[8:8+length]
+    print(f"Extracted payload of length {length} bytes (adaptive+keyed).")
+
+    if decrypt:
+        try:
+            payload = aes_decrypt(payload, user_key)
+        except Exception as e:
+            print(f"AES decrypt failed: {e}")
+            return None
     return payload
