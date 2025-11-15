@@ -139,3 +139,40 @@ python -m src.cli extract --stego data/stego/stego.wav --key "final-year-key" --
 # Generate all figures
 python -m src.viz_demo
 ```
+
+## Live Spectrogram Viewer (src/live_view.py)
+
+This tool plays audio while displaying a spectrogram with a live, moving time cursor. In compare mode, it shows cover vs stego side-by-side with unified color scaling.
+
+### What It Does
+- Precompute spectrogram(s): Reads WAV as mono int16, computes spectrogram once with `scipy.signal.spectrogram`, converts to dB.
+- Plot spectrograms: Uses `matplotlib` (`pcolormesh`) to render. In `--compare` mode, shows cover and stego side-by-side with a shared colorbar.
+- Play audio: Normalizes the `int16` to `float32` in [-1, 1] and plays non-blocking via `sounddevice.sd.play(...)`.
+- Animate cursor: A cyan vertical line is updated ~30 fps using a Matplotlib timer, positioned by elapsed wall-clock time since playback started.
+
+### Why This Is Correct
+- Efficient live feel: Spectrogram is computed once; only the cursor moves. This avoids heavy real-time FFT work and keeps UI smooth.
+- Sync strategy: Uses `time.perf_counter()` from the moment `sd.play(...)` starts, closely matching playback time.
+- Robust startup: Delays playback by ~100 ms after window draw (when supported) to reduce backend-induced lag and improve alignment.
+- Compare mode: Keeps both plots on the same dB scale and moves two cursors in lockstep for fair visual comparison.
+
+### Minor Caveats
+- Sample-rate mismatch: Compare mode assumes the same sample rate for cover and stego; otherwise time axes can differ slightly. If needed, add an explicit resample or per-file time axis handling.
+- Tiny drift: Wall-clock vs audio device clock can introduce very small drift. For near-perfect sync, consider stream timing (`sounddevice` stream callbacks or stream time).
+- GUI backend: The small startup delay uses a Tk-specific hook when available; the code gracefully falls back if a different backend is active.
+
+### Usage
+```powershell
+# Stego-only live spectrogram with moving cursor
+python -m src.live_view --stego data/stego/stego.wav
+
+# Side-by-side cover vs stego with synchronized cursors
+python -m src.live_view --stego data/stego/stego.wav --cover data/original/file_example_WAV_1MG.wav --compare
+```
+
+### Tuning
+- `--nperseg`: Higher values improve frequency resolution but smear time; lower values react faster in time.
+- `--noverlap`: Increase to smooth the image, decrease for faster computation and less smoothing.
+
+### Dependencies
+- Requires `sounddevice` in addition to NumPy/Matplotlib/SciPy/SoundFile. This is listed in `requirements.txt`.
