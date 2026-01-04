@@ -63,7 +63,13 @@ def generate_order_indices(audio_path: str,
     """
     data, _ = _read_wav_mono_int16(audio_path)
     n = data.shape[0]
-    rms, edges = _frame_rms(data, frame_size=frame_size, hop_size=hop_size)
+
+    # IMPORTANT: RMS drives the ordering. Since embedding flips the LSB of some samples,
+    # compute energy on a version of the signal with LSB cleared so the ordering is
+    # stable between cover and stego (and extraction won't fail due to tiny RMS drift).
+    data_energy = (data.astype(np.int32) & ~1).astype(np.int16)
+
+    rms, edges = _frame_rms(data_energy, frame_size=frame_size, hop_size=hop_size)
     scores = _normalize_scores(rms)
 
     # Optional thresholding: attenuate frames below percentile by shrinking score

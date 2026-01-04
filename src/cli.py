@@ -50,7 +50,11 @@ def cmd_extract(args: argparse.Namespace):
         decrypt=not args.no_decrypt,
     )
     if payload is None:
-        print("Extraction failed.")
+        print(
+            "Extraction failed. Common causes: wrong --key, mismatched parameters "
+            "(--energy-percentile/--frame-size/--hop-size must match embed), or the WAV "
+            "does not contain an ASTG payload."
+        )
         return
     if args.out_text:
         # try decoding utf-8
