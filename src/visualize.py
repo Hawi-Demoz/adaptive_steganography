@@ -54,7 +54,13 @@ def plot_waveform_comparison(original_wav: str, stego_wav: str, num_samples: int
     diff = (x[:n] != y[:n])
     lsb_changed = ((x[:n] ^ y[:n]) & 1) != 0
 
-    fig, ax = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
+    fig, ax = plt.subplots(2, 1, figsize=(10, 6), sharex=True, constrained_layout=True)
+    fig.suptitle(f"Waveform Comparison\nCover: {Path(original_wav).name} | Stego: {Path(stego_wav).name}")
+    if fig.canvas.manager is not None:
+        try:
+            fig.canvas.manager.set_window_title("Waveform Comparison")
+        except Exception:
+            pass
     ax[0].plot(idx, x[:n], label='Original', lw=1)
     ax[0].plot(idx, y[:n], label='Stego', lw=1, alpha=0.7)
     if np.any(diff):
@@ -70,7 +76,6 @@ def plot_waveform_comparison(original_wav: str, stego_wav: str, num_samples: int
     ax[1].set_title('Noise (Stego - Original)')
     ax[1].set_xlabel('Sample index')
 
-    fig.tight_layout()
     if save_path:
         _ensure_dir(Path(save_path))
         fig.savefig(save_path, dpi=150)
@@ -92,7 +97,13 @@ def plot_spectrogram_comparison(original_wav: str, stego_wav: str, nperseg: int 
     vmin = min(Sx_db.min(), Sy_db.min())
     vmax = max(Sx_db.max(), Sy_db.max())
 
-    fig, ax = plt.subplots(1, 2, figsize=(12, 4), sharey=True)
+    fig, ax = plt.subplots(1, 2, figsize=(12, 4), sharey=True, constrained_layout=True)
+    fig.suptitle(f"Spectrogram Comparison\nCover: {Path(original_wav).name} | Stego: {Path(stego_wav).name}")
+    if fig.canvas.manager is not None:
+        try:
+            fig.canvas.manager.set_window_title("Spectrogram Comparison")
+        except Exception:
+            pass
     im0 = ax[0].pcolormesh(t1, f1, Sx_db, shading='gouraud', cmap='magma', vmin=vmin, vmax=vmax)
     ax[0].set_title('Original Spectrogram')
     ax[0].set_xlabel('Time [s]')
@@ -101,8 +112,6 @@ def plot_spectrogram_comparison(original_wav: str, stego_wav: str, nperseg: int 
     ax[1].set_title('Stego Spectrogram')
     ax[1].set_xlabel('Time [s]')
     fig.colorbar(im1, ax=ax.ravel().tolist(), shrink=0.8, label='dB')
-    fig.tight_layout()
-
     if save_path:
         _ensure_dir(Path(save_path))
         fig.savefig(save_path, dpi=150)
@@ -121,7 +130,7 @@ def plot_energy_analysis(audio_wav: str, frame_size: int = 1024, hop_size: int =
     levels[rms >= thr_high] = 2
 
     t = np.arange(len(rms)) * (hop_size / 44100.0)  # assume ~44.1kHz for rough x-axis; fine for visualization
-    fig, ax = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
+    fig, ax = plt.subplots(2, 1, figsize=(10, 6), sharex=True, constrained_layout=True)
     ax[0].plot(t, rms, label='RMS/frame')
     ax[0].axhline(thr_low, color='orange', ls='--', label=f'{p_low}th pct')
     ax[0].axhline(thr_high, color='red', ls='--', label=f'{p_high}th pct')
@@ -134,7 +143,6 @@ def plot_energy_analysis(audio_wav: str, frame_size: int = 1024, hop_size: int =
     ax[1].set_title('Adaptive embedding plan (0-bit skip, 1-bit, 2-bit)')
     ax[1].set_xlabel('Time [s]')
 
-    fig.tight_layout()
     if save_path:
         _ensure_dir(Path(save_path))
         fig.savefig(save_path, dpi=150)
@@ -149,12 +157,11 @@ def plot_random_positions(audio_wav: str, key_str: str, count: int = 5000, frame
     n = min(count, order.size)
     sel = order[:n]
 
-    fig, ax = plt.subplots(figsize=(10, 3))
+    fig, ax = plt.subplots(figsize=(10, 3), constrained_layout=True)
     ax.scatter(np.arange(n), sel, s=3, alpha=0.7)
     ax.set_title(f'Key-based random embedding positions (first {n})')
     ax.set_xlabel('Order index (rank)')
     ax.set_ylabel('Sample position')
-    fig.tight_layout()
     if save_path:
         _ensure_dir(Path(save_path))
         fig.savefig(save_path, dpi=150)
@@ -174,7 +181,13 @@ def plot_snr_and_noise(original_wav: str, stego_wav: str, save_path: Optional[st
     p_noise = np.sum(noise * noise) + 1e-12
     snr_db = 10.0 * np.log10(p_sig / p_noise)
 
-    fig, ax = plt.subplots(1, 2, figsize=(12, 4))
+    fig, ax = plt.subplots(1, 2, figsize=(12, 4), constrained_layout=True)
+    fig.suptitle(f"SNR & Noise\nCover: {Path(original_wav).name} | Stego: {Path(stego_wav).name}")
+    if fig.canvas.manager is not None:
+        try:
+            fig.canvas.manager.set_window_title("SNR & Noise")
+        except Exception:
+            pass
     ax[0].hist(noise, bins=51, color='slateblue', alpha=0.8)
     ax[0].set_title(f'Noise histogram (SNR ~ {snr_db:.2f} dB)')
     ax[0].set_xlabel('Amplitude difference')
@@ -182,7 +195,6 @@ def plot_snr_and_noise(original_wav: str, stego_wav: str, save_path: Optional[st
     ax[1].plot(noise, lw=0.8)
     ax[1].set_title('Noise (time domain)')
     ax[1].set_xlabel('Sample index')
-    fig.tight_layout()
     if save_path:
         _ensure_dir(Path(save_path))
         fig.savefig(save_path, dpi=150)
@@ -246,13 +258,12 @@ def plot_ber_vs_awgn(
         bers.append(ber)
 
     # Plot
-    fig, ax = plt.subplots(figsize=(7, 4))
+    fig, ax = plt.subplots(figsize=(7, 4), constrained_layout=True)
     ax.plot(list(snr_db_list), bers, marker='o')
     ax.set_xlabel('Added AWGN SNR (dB)')
     ax.set_ylabel('Bit Error Rate')
     ax.set_title('BER vs AWGN SNR')
     ax.grid(True, ls='--', alpha=0.5)
-    fig.tight_layout()
     if save_path:
         _ensure_dir(Path(save_path))
         fig.savefig(save_path, dpi=150)
@@ -272,13 +283,18 @@ def plot_bit_difference_heatmap(original_wav: str, stego_wav: str, block: int = 
     m = (n // block) * block
     mat = changed[:m].reshape(-1, block)
 
-    fig, ax = plt.subplots(figsize=(10, 3))
+    fig, ax = plt.subplots(figsize=(10, 3), constrained_layout=True)
+    fig.suptitle(f"LSB Difference Heatmap\nCover: {Path(original_wav).name} | Stego: {Path(stego_wav).name}")
+    if fig.canvas.manager is not None:
+        try:
+            fig.canvas.manager.set_window_title("LSB Difference Heatmap")
+        except Exception:
+            pass
     im = ax.imshow(mat, aspect='auto', cmap='Greys', interpolation='nearest')
     ax.set_title('Bit difference heatmap (1=LSB changed)')
     ax.set_xlabel('Sample within block')
     ax.set_ylabel('Block index')
     fig.colorbar(im, ax=ax, shrink=0.8)
-    fig.tight_layout()
     if save_path:
         _ensure_dir(Path(save_path))
         fig.savefig(save_path, dpi=150)
