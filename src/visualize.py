@@ -50,31 +50,44 @@ def plot_waveform_comparison(original_wav: str, stego_wav: str, num_samples: int
     y, _ = _read_wav_mono_int16(stego_wav)
     n = min(num_samples, x.size, y.size)
     idx = np.arange(n)
+    # Normalize to common peak to reflect low-level LSB noise
+    xf = x[:n].astype(np.float64)
+    yf = y[:n].astype(np.float64)
+    peak = max(np.max(np.abs(xf)), np.max(np.abs(yf)), 1e-12)
+    xf /= peak
+    yf /= peak
+    diff_sig = yf - xf
+
     # changed positions (any difference) and LSB-changed positions
     diff = (x[:n] != y[:n])
     lsb_changed = ((x[:n] ^ y[:n]) & 1) != 0
 
-    fig, ax = plt.subplots(2, 1, figsize=(10, 6), sharex=True, constrained_layout=True)
+    fig, ax = plt.subplots(3, 1, figsize=(10, 8), sharex=True, constrained_layout=True)
     fig.suptitle(f"Waveform Comparison\nCover: {Path(original_wav).name} | Stego: {Path(stego_wav).name}")
     if fig.canvas.manager is not None:
         try:
             fig.canvas.manager.set_window_title("Waveform Comparison")
         except Exception:
             pass
-    ax[0].plot(idx, x[:n], label='Original', lw=1)
-    ax[0].plot(idx, y[:n], label='Stego', lw=1, alpha=0.7)
+    ax[0].plot(idx, xf, label='Original (normalized)', lw=1)
+    ax[0].plot(idx, yf, label='Stego (normalized)', lw=1, alpha=0.7)
     if np.any(diff):
-        ax[0].scatter(idx[diff], y[:n][diff], s=10, c='crimson', label='Modified samples')
-    ax[0].set_title('Waveform: Original vs Stego (first N samples)')
+        ax[0].scatter(idx[diff], yf[diff], s=10, c='crimson', label='Modified samples')
+    ax[0].set_title('Waveform: Original vs Stego (normalized)')
     ax[0].legend(loc='upper right')
 
-    noise = (y[:n].astype(np.int32) - x[:n].astype(np.int32)).astype(np.int32)
-    ax[1].plot(idx, noise, lw=1, color='slateblue')
+    ax[1].plot(idx, diff_sig, lw=1, color='slateblue')
     if np.any(lsb_changed):
-        ax[1].scatter(idx[lsb_changed], noise[lsb_changed], s=10, c='orange', label='LSB changed')
+        ax[1].scatter(idx[lsb_changed], diff_sig[lsb_changed], s=10, c='orange', label='LSB changed')
         ax[1].legend(loc='upper right')
-    ax[1].set_title('Noise (Stego - Original)')
+    ax[1].set_title('Difference (Stego - Original, normalized)')
+    ax[1].set_ylabel('Amplitude (normalized)')
+
+    # Zoomed difference view for low-level LSB noise
+    ax[2].plot(idx, diff_sig, lw=1, color='dimgray')
+    ax[2].set_title('Difference (zoomed)')
     ax[1].set_xlabel('Sample index')
+    ax[2].set_xlabel('Sample index')
 
     if save_path:
         _ensure_dir(Path(save_path))
@@ -87,8 +100,11 @@ def plot_waveform_comparison(original_wav: str, stego_wav: str, num_samples: int
 def plot_spectrogram_comparison(original_wav: str, stego_wav: str, nperseg: int = 1024, noverlap: int = 512, save_path: Optional[str] = None):
     x, sr = _read_wav_mono_int16(original_wav)
     y, _ = _read_wav_mono_int16(stego_wav)
-    x = x.astype(np.float32)
-    y = y.astype(np.float32)
+    x = x.astype(np.float64)
+    y = y.astype(np.float64)
+    peak = max(np.max(np.abs(x)), np.max(np.abs(y)), 1e-12)
+    x = x / peak
+    y = y / peak
     f1, t1, Sx = spectrogram(x, fs=sr, nperseg=nperseg, noverlap=noverlap)
     f2, t2, Sy = spectrogram(y, fs=sr, nperseg=nperseg, noverlap=noverlap)
 
