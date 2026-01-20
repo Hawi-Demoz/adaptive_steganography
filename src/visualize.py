@@ -50,19 +50,17 @@ def plot_waveform_comparison(original_wav: str, stego_wav: str, num_samples: int
     y, _ = _read_wav_mono_int16(stego_wav)
     n = min(num_samples, x.size, y.size)
     idx = np.arange(n)
-    # Normalize to common peak to reflect low-level LSB noise
-    xf = x[:n].astype(np.float64)
-    yf = y[:n].astype(np.float64)
-    peak = max(np.max(np.abs(xf)), np.max(np.abs(yf)), 1e-12)
-    xf /= peak
-    yf /= peak
+    # Normalize to [-1, 1] in float for correct LSB-level visualization
+    xf = x[:n].astype(np.float64) / 32768.0
+    yf = y[:n].astype(np.float64) / 32768.0
     diff_sig = yf - xf
+    diff_lsb = diff_sig * 32768.0
 
     # changed positions (any difference) and LSB-changed positions
     diff = (x[:n] != y[:n])
     lsb_changed = ((x[:n] ^ y[:n]) & 1) != 0
 
-    fig, ax = plt.subplots(3, 1, figsize=(10, 8), sharex=True, constrained_layout=True)
+    fig, ax = plt.subplots(4, 1, figsize=(10, 10), sharex=True, constrained_layout=True)
     fig.suptitle(f"Waveform Comparison\nCover: {Path(original_wav).name} | Stego: {Path(stego_wav).name}")
     if fig.canvas.manager is not None:
         try:
@@ -76,18 +74,26 @@ def plot_waveform_comparison(original_wav: str, stego_wav: str, num_samples: int
     ax[0].set_title('Waveform: Original vs Stego (normalized)')
     ax[0].legend(loc='upper right')
 
-    ax[1].plot(idx, diff_sig, lw=1, color='slateblue')
+    ax[1].plot(idx, diff_lsb, lw=1, color='slateblue')
     if np.any(lsb_changed):
-        ax[1].scatter(idx[lsb_changed], diff_sig[lsb_changed], s=10, c='orange', label='LSB changed')
+        ax[1].scatter(idx[lsb_changed], diff_lsb[lsb_changed], s=10, c='orange', label='LSB changed')
         ax[1].legend(loc='upper right')
-    ax[1].set_title('Difference (Stego - Original, normalized)')
-    ax[1].set_ylabel('Amplitude (normalized)')
+    ax[1].set_title('Difference (Stego - Original) in LSB units')
+    ax[1].set_ylabel('Amplitude difference (LSB units)')
 
     # Zoomed difference view for low-level LSB noise
-    ax[2].plot(idx, diff_sig, lw=1, color='dimgray')
-    ax[2].set_title('Difference (zoomed)')
+    ax[2].plot(idx, diff_lsb, lw=1, color='dimgray')
+    ax[2].set_title('Difference (zoomed, LSB units)')
+    ax[2].set_ylabel('Amplitude difference (LSB units)')
+    ax[2].set_ylim(-1.5, 1.5)
     ax[1].set_xlabel('Sample index')
     ax[2].set_xlabel('Sample index')
+
+    # Histogram of LSB differences
+    ax[3].hist(diff_lsb, bins=[-1.5, -0.5, 0.5, 1.5], color='gray', edgecolor='black')
+    ax[3].set_title('Histogram of LSB differences')
+    ax[3].set_xlabel('LSB difference value')
+    ax[3].set_ylabel('Count')
 
     if save_path:
         _ensure_dir(Path(save_path))
