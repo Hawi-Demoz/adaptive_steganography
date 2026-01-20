@@ -137,7 +137,7 @@ def plot_spectrogram_comparison(original_wav: str, stego_wav: str, nperseg: int 
 
 
 def plot_energy_analysis(audio_wav: str, frame_size: int = 1024, hop_size: int = 512, p_low: float = 33.0, p_high: float = 66.0, save_path: Optional[str] = None):
-    x, _ = _read_wav_mono_int16(audio_wav)
+    x, sr = _read_wav_mono_int16(audio_wav)
     rms, edges = _compute_rms_per_frame(x, frame_size, hop_size)
     thr_low = np.percentile(rms, p_low)
     thr_high = np.percentile(rms, p_high)
@@ -145,7 +145,7 @@ def plot_energy_analysis(audio_wav: str, frame_size: int = 1024, hop_size: int =
     levels[rms >= thr_low] = 1
     levels[rms >= thr_high] = 2
 
-    t = np.arange(len(rms)) * (hop_size / 44100.0)  # assume ~44.1kHz for rough x-axis; fine for visualization
+    t = np.arange(len(rms)) * (hop_size / float(sr))
     fig, ax = plt.subplots(2, 1, figsize=(10, 6), sharex=True, constrained_layout=True)
     ax[0].plot(t, rms, label='RMS/frame')
     ax[0].axhline(thr_low, color='orange', ls='--', label=f'{p_low}th pct')
@@ -192,9 +192,12 @@ def plot_snr_and_noise(original_wav: str, stego_wav: str, save_path: Optional[st
     n = min(num_samples, x.size, y.size)
     x_f = x[:n].astype(np.float64)
     y_f = y[:n].astype(np.float64)
+    peak = max(np.max(np.abs(x_f)), np.max(np.abs(y_f)), 1e-12)
+    x_f /= peak
+    y_f /= peak
     noise = y_f - x_f
-    p_sig = np.sum(x_f * x_f) + 1e-12
-    p_noise = np.sum(noise * noise) + 1e-12
+    p_sig = np.mean(x_f * x_f) + 1e-12
+    p_noise = np.mean(noise * noise) + 1e-12
     snr_db = 10.0 * np.log10(p_sig / p_noise)
 
     fig, ax = plt.subplots(1, 2, figsize=(12, 4), constrained_layout=True)
@@ -294,23 +297,28 @@ def plot_bit_difference_heatmap(original_wav: str, stego_wav: str, block: int = 
     n = min(x.size, y.size)
     x = x[:n]
     y = y[:n]
-    changed = ((x ^ y) & 1) != 0
+
+    # LSB-only binary differences: 1 where embedding flipped LSB, else 0
+    lsb_x = (x & 1).astype(np.uint8)
+    lsb_y = (y & 1).astype(np.uint8)
+    changed = (lsb_x != lsb_y).astype(np.uint8)
+
     # reshape to blocks
     m = (n // block) * block
     mat = changed[:m].reshape(-1, block)
 
     fig, ax = plt.subplots(figsize=(10, 3), constrained_layout=True)
-    fig.suptitle(f"LSB Difference Heatmap\nCover: {Path(original_wav).name} | Stego: {Path(stego_wav).name}")
+    fig.suptitle(f"LSB Modification Heatmap\nCover: {Path(original_wav).name} | Stego: {Path(stego_wav).name}")
     if fig.canvas.manager is not None:
         try:
-            fig.canvas.manager.set_window_title("LSB Difference Heatmap")
+            fig.canvas.manager.set_window_title("LSB Modification Heatmap")
         except Exception:
             pass
-    im = ax.imshow(mat, aspect='auto', cmap='Greys', interpolation='nearest')
-    ax.set_title('Bit difference heatmap (1=LSB changed)')
+    im = ax.imshow(mat, aspect='auto', cmap='Greys', interpolation='nearest', vmin=0, vmax=1)
+    ax.set_title('LSB modification map (1 = LSB changed)')
     ax.set_xlabel('Sample within block')
     ax.set_ylabel('Block index')
-    fig.colorbar(im, ax=ax, shrink=0.8)
+    fig.colorbar(im, ax=ax, shrink=0.8, ticks=[0, 1])
     if save_path:
         _ensure_dir(Path(save_path))
         fig.savefig(save_path, dpi=150)
