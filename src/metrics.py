@@ -29,3 +29,20 @@ def compute_ber(bits_a: np.ndarray, bits_b: np.ndarray) -> float:
     if bits_a.size == 0:
         return 0.0
     return float(np.sum(bits_a.astype(np.uint8) != bits_b.astype(np.uint8))) / bits_a.size
+
+
+def compute_lsb_ber(original_wav: str, stego_wav: str) -> float:
+    x, _ = sf.read(original_wav, dtype='int16')
+    y, _ = sf.read(stego_wav, dtype='int16')
+    if x.ndim == 2:
+        x = x[:, 0]
+    if y.ndim == 2:
+        y = y[:, 0]
+    n = min(x.shape[0], y.shape[0])
+    if n == 0:
+        return 0.0
+    x = x[:n].astype(np.int16)
+    y = y[:n].astype(np.int16)
+    bits_a = (x & 1).astype(np.uint8)
+    bits_b = (y & 1).astype(np.uint8)
+    return compute_ber(bits_a, bits_b)

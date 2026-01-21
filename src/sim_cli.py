@@ -10,7 +10,7 @@ import numpy as np
 from .embed import embed_adaptive_keyed
 from .extract import extract_adaptive_keyed
 from .encrypt import aes_encrypt
-from .metrics import compute_ber, compute_snr_db
+from .metrics import compute_ber, compute_lsb_ber, compute_snr_db
 from .visualize import (
     plot_bit_difference_heatmap,
     plot_snr_and_noise,
@@ -249,6 +249,26 @@ def _extract_flow():
 
     print("\n[Output]")
     print(f"Secret message is = {text}")
+
+    # Metrics before/after embedding
+    cover_for_metrics = _prompt_existing_wav(
+        "Enter original cover path for SNR/BER metrics",
+        default_path=LAST_COVER_PATH or "data/original/sample.wav",
+    )
+    LAST_COVER_PATH = cover_for_metrics
+
+    snr_before = compute_snr_db(cover_for_metrics, cover_for_metrics)
+    snr_after = compute_snr_db(cover_for_metrics, stego)
+    ber_before = compute_lsb_ber(cover_for_metrics, cover_for_metrics)
+    ber_after = compute_lsb_ber(cover_for_metrics, stego)
+
+    print("\n[Performance Metrics]")
+    print("Before embedding (cover vs cover):")
+    print(f"  SNR: {snr_before:.2f} dB")
+    print(f"  BER: {ber_before:.6f}")
+    print("After embedding (cover vs stego):")
+    print(f"  SNR: {snr_after:.2f} dB")
+    print(f"  BER: {ber_after:.6f}")
 
     # Optional comparison figures
     if _prompt_yes_no("Generate comparison figures?", default_yes=True):

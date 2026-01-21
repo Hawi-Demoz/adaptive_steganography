@@ -4,7 +4,7 @@ from pathlib import Path
 
 from .embed import embed_adaptive_keyed
 from .extract import extract_adaptive_keyed
-from .metrics import compute_snr_db
+from .metrics import compute_lsb_ber, compute_snr_db
 
 
 def _derive_aes_key_bytes(key_str: str, key_len: int = 16) -> bytes:
@@ -66,6 +66,20 @@ def cmd_extract(args: argparse.Namespace):
         Path(args.out_file).write_bytes(payload)
         print(f"Wrote output to {args.out_file}")
 
+    if args.metrics and args.cover is not None:
+        cover = str(args.cover)
+        snr_before = compute_snr_db(cover, cover)
+        snr_after = compute_snr_db(cover, stego)
+        ber_before = compute_lsb_ber(cover, cover)
+        ber_after = compute_lsb_ber(cover, stego)
+        print("\n[Performance Metrics]")
+        print("Before embedding (cover vs cover):")
+        print(f"  SNR: {snr_before:.2f} dB")
+        print(f"  BER: {ber_before:.6f}")
+        print("After embedding (cover vs stego):")
+        print(f"  SNR: {snr_after:.2f} dB")
+        print(f"  BER: {ber_after:.6f}")
+
 
 def main():
     p = argparse.ArgumentParser(description="Adaptive & Keyed Audio Steganography")
@@ -92,6 +106,8 @@ def main():
     px.add_argument('--hop-size', type=int, default=512)
     px.add_argument('--energy-percentile', type=float, default=0.0)
     px.add_argument('--no-decrypt', action='store_true', help='Disable AES decryption')
+    px.add_argument('--cover', type=Path, help='Original cover WAV for SNR/BER metrics')
+    px.add_argument('--metrics', action='store_true', help='Print SNR/BER before/after embedding (requires --cover)')
     outg = px.add_mutually_exclusive_group()
     outg.add_argument('--out-text', action='store_true', help='Print recovered text to stdout')
     outg.add_argument('--out-file', type=Path, help='Write recovered bytes to file')
