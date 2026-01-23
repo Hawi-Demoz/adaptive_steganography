@@ -10,6 +10,7 @@ from scipy.signal import spectrogram
 
 from .keyed_adaptive import generate_order_indices
 from .encrypt import aes_encrypt
+from .metrics import compute_sample_change_stats
 
 
 PREAMBLE = b"ASTG"
@@ -45,7 +46,26 @@ def _ensure_dir(p: Path):
     p.parent.mkdir(parents=True, exist_ok=True)
 
 
-def plot_waveform_comparison(original_wav: str, stego_wav: str, num_samples: int = 5000, save_path: Optional[str] = None):
+def _print_change_report(original_wav: str, stego_wav: str, label: str):
+    stats = compute_sample_change_stats(original_wav, stego_wav)
+    total = stats["samples_total"]
+    changed = stats["samples_changed"]
+    frac = stats["fraction_changed"] * 100.0 if total else 0.0
+    print(f"[{label}] Sample change metrics:")
+    print(f"  Samples changed: {changed} / {total} ({frac:.4f}%)")
+    print(f"  LSB changed: {stats['lsb_changed']}")
+    print(f"  Max abs diff: {stats['max_abs_diff']} LSB units")
+    print(f"  SNR: {stats['snr_db']:.2f} dB")
+    print(f"  BER (LSB): {stats['ber_lsb']:.6f}")
+
+
+def plot_waveform_comparison(
+    original_wav: str,
+    stego_wav: str,
+    num_samples: int = 5000,
+    save_path: Optional[str] = None,
+    report_stats: bool = False,
+):
     x, _ = _read_wav_mono_int16(original_wav)
     y, _ = _read_wav_mono_int16(stego_wav)
     n = min(num_samples, x.size, y.size)
@@ -102,6 +122,9 @@ def plot_waveform_comparison(original_wav: str, stego_wav: str, num_samples: int
     else:
         plt.show()
 
+    if report_stats:
+        _print_change_report(original_wav, stego_wav, label="Waveform")
+
 
 def plot_spectrogram_comparison(
     original_wav: str,
@@ -110,6 +133,7 @@ def plot_spectrogram_comparison(
     noverlap: int = 512,
     save_path: Optional[str] = None,
     show_difference: bool = True,
+    report_stats: bool = False,
 ):
     x, sr = _read_wav_mono_int16(original_wav)
     y, _ = _read_wav_mono_int16(stego_wav)
@@ -168,6 +192,9 @@ def plot_spectrogram_comparison(
     else:
         plt.show()
 
+    if report_stats:
+        _print_change_report(original_wav, stego_wav, label="Spectrogram")
+
 
 def plot_energy_analysis(audio_wav: str, frame_size: int = 1024, hop_size: int = 512, p_low: float = 33.0, p_high: float = 66.0, save_path: Optional[str] = None):
     x, sr = _read_wav_mono_int16(audio_wav)
@@ -219,7 +246,13 @@ def plot_random_positions(audio_wav: str, key_str: str, count: int = 5000, frame
         plt.show()
 
 
-def plot_snr_and_noise(original_wav: str, stego_wav: str, save_path: Optional[str] = None, num_samples: int = 10000):
+def plot_snr_and_noise(
+    original_wav: str,
+    stego_wav: str,
+    save_path: Optional[str] = None,
+    num_samples: int = 10000,
+    report_stats: bool = False,
+):
     x, _ = _read_wav_mono_int16(original_wav)
     y, _ = _read_wav_mono_int16(stego_wav)
     n = min(num_samples, x.size, y.size)
@@ -253,6 +286,9 @@ def plot_snr_and_noise(original_wav: str, stego_wav: str, save_path: Optional[st
         plt.close(fig)
     else:
         plt.show()
+
+    if report_stats:
+        _print_change_report(original_wav, stego_wav, label="SNR & Noise")
 
 
 def _build_embedded_bits(plaintext: bytes, key_bytes: bytes) -> np.ndarray:
@@ -324,7 +360,13 @@ def plot_ber_vs_awgn(
         plt.show()
 
 
-def plot_bit_difference_heatmap(original_wav: str, stego_wav: str, block: int = 2048, save_path: Optional[str] = None):
+def plot_bit_difference_heatmap(
+    original_wav: str,
+    stego_wav: str,
+    block: int = 2048,
+    save_path: Optional[str] = None,
+    report_stats: bool = False,
+):
     x, _ = _read_wav_mono_int16(original_wav)
     y, _ = _read_wav_mono_int16(stego_wav)
     n = min(x.size, y.size)
@@ -358,3 +400,6 @@ def plot_bit_difference_heatmap(original_wav: str, stego_wav: str, block: int = 
         plt.close(fig)
     else:
         plt.show()
+
+    if report_stats:
+        _print_change_report(original_wav, stego_wav, label="LSB Heatmap")

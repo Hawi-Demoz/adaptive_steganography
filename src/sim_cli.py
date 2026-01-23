@@ -10,7 +10,7 @@ import numpy as np
 from .embed import embed_adaptive_keyed
 from .extract import extract_adaptive_keyed
 from .encrypt import aes_encrypt
-from .metrics import compute_ber, compute_lsb_ber, compute_snr_db
+from .metrics import compute_ber, compute_lsb_ber, compute_snr_db, compute_sample_change_stats
 from .visualize import (
     plot_bit_difference_heatmap,
     plot_snr_and_noise,
@@ -169,35 +169,47 @@ def _embed_flow():
     LAST_STEGO_PATH = out_path
     LAST_COVER_PATH = cover
 
+    # Report how many bits were used and expected flips
+    embedded_len_bytes = len(aes_encrypt(message.encode("utf-8"), key_bytes)) if encrypt else len(message.encode("utf-8"))
+    bits_used = 64 + embedded_len_bytes * 8
+    stats = compute_sample_change_stats(cover, out_path)
+    print("\n[Embedding Utilization]")
+    print(f"Bits used (header + payload): {bits_used}")
+    print(f"Estimated flips (~50% of used): {bits_used/2:.0f}")
+    print(f"Actual flips: {stats['lsb_changed']} / {stats['samples_total']} ({stats['fraction_changed']*100:.4f}%)")
+
     snr = compute_snr_db(cover, out_path)
 
-    # BER computation: compare original payload bits vs extracted payload bits
-    payload_bytes = aes_encrypt(message.encode("utf-8"), key_bytes) if encrypt else message.encode("utf-8")
-    extracted_payload = extract_adaptive_keyed(
+    # BER on recovered plaintext (0.0 means perfect extraction)
+    extracted_plain = extract_adaptive_keyed(
         stego_wav_path=out_path,
         user_key=key_bytes,
         frame_size=FRAME_SIZE,
         hop_size=HOP_SIZE,
         energy_percentile=energy_percentile,
-        decrypt=False,
+        decrypt=True,
     )
-
-    if extracted_payload is None:
-        ber = None
+    if extracted_plain is None:
+        ber_payload = None
     else:
-        bits_a = _bytes_to_bits(payload_bytes)
-        bits_b = _bytes_to_bits(extracted_payload)
+        bits_a = _bytes_to_bits(message.encode("utf-8"))
+        bits_b = _bytes_to_bits(extracted_plain)
         min_len = min(bits_a.size, bits_b.size)
-        ber = compute_ber(bits_a[:min_len], bits_b[:min_len]) if min_len > 0 else 0.0
+        ber_payload = compute_ber(bits_a[:min_len], bits_b[:min_len]) if min_len > 0 else 0.0
+
+    # LSB-level BER between cover and stego (how many samples were flipped)
+    ber_lsb = compute_lsb_ber(cover, out_path)
 
     print("\n[Output]")
     print(f"Stego file: {out_path}")
     print("\n[Performance Metrics]")
+    print(f"Metrics cover: {cover}")
     print(f"SNR: {snr:.2f} dB")
-    if ber is None:
-        print("BER: unavailable (extraction failed)")
+    if ber_payload is None:
+        print("Payload BER: unavailable (extraction failed)")
     else:
-        print(f"BER: {ber:.6f}")
+        print(f"Payload BER: {ber_payload:.6f}")
+    print(f"LSB BER (cover vs stego): {ber_lsb:.6f}")
 
 
 def _extract_flow():
@@ -288,21 +300,25 @@ def _extract_flow():
             original_wav=cover_path,
             stego_wav=stego,
             save_path=str(wf_path),
+            report_stats=True,
         )
         plot_spectrogram_comparison(
             original_wav=cover_path,
             stego_wav=stego,
             save_path=str(sp_path),
+            report_stats=True,
         )
         plot_snr_and_noise(
             original_wav=cover_path,
             stego_wav=stego,
             save_path=str(sn_path),
+            report_stats=True,
         )
         plot_bit_difference_heatmap(
             original_wav=cover_path,
             stego_wav=stego,
             save_path=str(hm_path),
+            report_stats=True,
         )
         print("\n[Figures]")
         print(f"Saved comparison figures to: {figs_dir.resolve()}")
@@ -330,21 +346,25 @@ def _show_plots_flow():
         original_wav=cover_path,
         stego_wav=LAST_STEGO_PATH,
         save_path=None,
+        report_stats=True,
     )
     plot_spectrogram_comparison(
         original_wav=cover_path,
         stego_wav=LAST_STEGO_PATH,
         save_path=None,
+        report_stats=True,
     )
     plot_snr_and_noise(
         original_wav=cover_path,
         stego_wav=LAST_STEGO_PATH,
         save_path=None,
+        report_stats=True,
     )
     plot_bit_difference_heatmap(
         original_wav=cover_path,
         stego_wav=LAST_STEGO_PATH,
         save_path=None,
+        report_stats=True,
     )
 
 

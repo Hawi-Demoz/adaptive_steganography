@@ -34,12 +34,12 @@ def main():
     embed_adaptive_keyed(str(cover), message, str(stego), key_bytes, energy_percentile=20.0)
 
     # Generate figures
-    plot_waveform_comparison(str(cover), str(stego), num_samples=3000, save_path=str(figs / 'waveform_comparison.png'))
-    plot_spectrogram_comparison(str(cover), str(stego), save_path=str(figs / 'spectrogram_comparison.png'))
+    plot_waveform_comparison(str(cover), str(stego), num_samples=3000, save_path=str(figs / 'waveform_comparison.png'), report_stats=True)
+    plot_spectrogram_comparison(str(cover), str(stego), save_path=str(figs / 'spectrogram_comparison.png'), report_stats=True)
     plot_energy_analysis(str(cover), save_path=str(figs / 'energy_analysis.png'))
     plot_random_positions(str(cover), key_str=key_str, count=4000, save_path=str(figs / 'random_positions.png'))
-    plot_snr_and_noise(str(cover), str(stego), save_path=str(figs / 'snr_and_noise.png'))
-    plot_bit_difference_heatmap(str(cover), str(stego), save_path=str(figs / 'bit_difference_heatmap.png'))
+    plot_snr_and_noise(str(cover), str(stego), save_path=str(figs / 'snr_and_noise.png'), report_stats=True)
+    plot_bit_difference_heatmap(str(cover), str(stego), save_path=str(figs / 'bit_difference_heatmap.png'), report_stats=True)
     plot_ber_vs_awgn(str(cover), message, key_str, snr_db_list=[60, 50, 40, 35, 30], save_path=str(figs / 'ber_vs_awgn.png'))
 
     print('Figures written to', figs)
