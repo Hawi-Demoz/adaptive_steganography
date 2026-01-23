@@ -1,5 +1,11 @@
 from pathlib import Path
+import sys
 import hashlib
+
+# Ensure project root is on sys.path when executed as a script
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from src.visualize import (
     plot_waveform_comparison,
@@ -15,7 +21,7 @@ from src.embed import embed_adaptive_keyed
 
 def main():
     root = Path(__file__).parent.parent
-    cover = root / 'data' / 'original' / 'file_example_WAV_1MG.wav'
+    cover = root / 'data' / 'original' / 'sample.wav'
     stego = root / 'data' / 'stego' / 'stego.wav'
     figs = root / 'figures'
     figs.mkdir(exist_ok=True)

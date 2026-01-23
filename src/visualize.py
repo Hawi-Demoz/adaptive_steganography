@@ -103,7 +103,14 @@ def plot_waveform_comparison(original_wav: str, stego_wav: str, num_samples: int
         plt.show()
 
 
-def plot_spectrogram_comparison(original_wav: str, stego_wav: str, nperseg: int = 1024, noverlap: int = 512, save_path: Optional[str] = None):
+def plot_spectrogram_comparison(
+    original_wav: str,
+    stego_wav: str,
+    nperseg: int = 1024,
+    noverlap: int = 512,
+    save_path: Optional[str] = None,
+    show_difference: bool = True,
+):
     x, sr = _read_wav_mono_int16(original_wav)
     y, _ = _read_wav_mono_int16(stego_wav)
     x = x.astype(np.float64)
@@ -111,16 +118,24 @@ def plot_spectrogram_comparison(original_wav: str, stego_wav: str, nperseg: int 
     peak = max(np.max(np.abs(x)), np.max(np.abs(y)), 1e-12)
     x = x / peak
     y = y / peak
+    noise = y - x
     f1, t1, Sx = spectrogram(x, fs=sr, nperseg=nperseg, noverlap=noverlap)
     f2, t2, Sy = spectrogram(y, fs=sr, nperseg=nperseg, noverlap=noverlap)
+    if show_difference:
+        f3, t3, Sn = spectrogram(noise, fs=sr, nperseg=nperseg, noverlap=noverlap)
 
     Sx_db = 10 * np.log10(Sx + 1e-12)
     Sy_db = 10 * np.log10(Sy + 1e-12)
     vmin = min(Sx_db.min(), Sy_db.min())
     vmax = max(Sx_db.max(), Sy_db.max())
 
-    fig, ax = plt.subplots(1, 2, figsize=(12, 4), sharey=True, constrained_layout=True)
-    fig.suptitle(f"Spectrogram Comparison\nCover: {Path(original_wav).name} | Stego: {Path(stego_wav).name}")
+    if show_difference:
+        fig, ax = plt.subplots(1, 3, figsize=(16, 4), sharey=True, constrained_layout=True)
+    else:
+        fig, ax = plt.subplots(1, 2, figsize=(12, 4), sharey=True, constrained_layout=True)
+    fig.suptitle(
+        f"Spectrogram Comparison\nCover: {Path(original_wav).name} | Stego: {Path(stego_wav).name}"
+    )
     if fig.canvas.manager is not None:
         try:
             fig.canvas.manager.set_window_title("Spectrogram Comparison")
@@ -133,7 +148,19 @@ def plot_spectrogram_comparison(original_wav: str, stego_wav: str, nperseg: int 
     im1 = ax[1].pcolormesh(t2, f2, Sy_db, shading='gouraud', cmap='magma', vmin=vmin, vmax=vmax)
     ax[1].set_title('Stego Spectrogram')
     ax[1].set_xlabel('Time [s]')
-    fig.colorbar(im1, ax=ax.ravel().tolist(), shrink=0.8, label='dB')
+    if show_difference:
+        Sn_db = 10 * np.log10(Sn + 1e-12)
+        # The embedded noise is typically extremely low-level. Use a fixed window
+        # so small differences don't get hidden by auto-ranging.
+        n_vmax = 0.0
+        n_vmin = -120.0
+        im2 = ax[2].pcolormesh(t3, f3, Sn_db, shading='gouraud', cmap='viridis', vmin=n_vmin, vmax=n_vmax)
+        ax[2].set_title('Noise Spectrogram (Stego - Cover)')
+        ax[2].set_xlabel('Time [s]')
+        fig.colorbar(im1, ax=[ax[0], ax[1]], shrink=0.8, label='dB (signal)')
+        fig.colorbar(im2, ax=ax[2], shrink=0.8, label='dB (noise)')
+    else:
+        fig.colorbar(im1, ax=ax.ravel().tolist(), shrink=0.8, label='dB')
     if save_path:
         _ensure_dir(Path(save_path))
         fig.savefig(save_path, dpi=150)
