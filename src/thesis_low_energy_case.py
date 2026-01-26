@@ -6,11 +6,16 @@ flips, SNR/BER, recovered message). It also saves standard figures.
 
 Run:
   python -m src.thesis_low_energy_case
+
+Optional:
+    python -m src.thesis_low_energy_case --energy-percentile 20
+    python -m src.thesis_low_energy_case --energy-percentile 40
 """
 
 from __future__ import annotations
 
 import hashlib
+import argparse
 from datetime import datetime
 from pathlib import Path
 
@@ -49,6 +54,23 @@ def _new_fig_dir() -> Path:
 
 
 def main() -> int:
+    ap = argparse.ArgumentParser(description="Thesis simulation case runner")
+    ap.add_argument("--energy-percentile", type=float, default=0.0, help="Energy adaptivity level (e.g., 0, 20, 40)")
+    ap.add_argument(
+        "--message",
+        type=str,
+        default=(
+            "LOW-ENERGY TEST: This message is embedded using keyed adaptive LSB (energy_percentile=0) "
+            "with AES encryption enabled."
+        ),
+        help="Secret message to embed (UTF-8)",
+    )
+    ap.add_argument("--passphrase", type=str, default="thesis-demo-key", help="Passphrase used to derive AES/key bytes")
+    ap.add_argument("--robust-repeat", type=int, default=1, help="Robust repetition factor (odd >= 1). 1 disables")
+    ap.add_argument("--no-interleave", action="store_true", help="Disable robustness interleaving")
+    ap.add_argument("--no-encrypt", action="store_true", help="Disable AES encryption")
+    args = ap.parse_args()
+
     cover = Path("data") / "original" / "sample.wav"
     if not cover.exists():
         print("Cover file not found:", cover)
@@ -56,28 +78,36 @@ def main() -> int:
 
     out_dir = _new_fig_dir()
 
-    # Low-energy level = 0th percentile (no energy thresholding)
-    energy_percentile = 0.0
-
-    # Thesis-friendly example message
-    secret_message = (
-        "LOW-ENERGY TEST: This message is embedded using keyed adaptive LSB (energy_percentile=0) "
-        "with AES encryption enabled."
-    )
-    passphrase = "thesis-demo-key"
+    energy_percentile = float(args.energy_percentile)
+    secret_message = args.message
+    passphrase = args.passphrase
+    encrypt = not args.no_encrypt
+    robust_repeat = int(args.robust_repeat)
+    robust_interleave = not args.no_interleave
 
     cover_path = str(cover)
-    stego_path = str(Path("data") / "stego" / "stego_low_energy.wav")
+    ep_label = str(int(energy_percentile)) if energy_percentile.is_integer() else str(energy_percentile).replace(".", "p")
+    stego_path = str(Path("data") / "stego" / f"stego_case_e{ep_label}.wav")
 
     key_bytes = _derive_aes_key_bytes(passphrase, 16)
     plaintext = secret_message.encode("utf-8")
 
     # Predict payload length exactly (AES-CBC stores IV || ciphertext)
-    ciphertext = aes_encrypt(plaintext, key_bytes)
-    bits_used_total = 64 + len(ciphertext) * 8
+    if encrypt:
+        ciphertext = aes_encrypt(plaintext, key_bytes)
+        payload_bytes = ciphertext
+    else:
+        payload_bytes = plaintext
+    # Account for robustness layer (if enabled)
+    if robust_repeat > 1 or not robust_interleave:
+        from .robust_payload import encode_payload
+
+        payload_bytes = encode_payload(payload_bytes, key=key_bytes, repeat=robust_repeat, interleave=robust_interleave)
+
+    bits_used_total = 64 + len(payload_bytes) * 8
 
     print("=" * 60)
-    print("Low Energy Level Simulation (energy_percentile = 0.0)")
+    print(f"Simulation Case (energy_percentile = {energy_percentile})")
     print("=" * 60)
     print(f"Cover WAV: {cover_path}")
     print(f"Output stego WAV: {stego_path}")
@@ -85,9 +115,13 @@ def main() -> int:
     print("\n[Embedding Inputs]")
     print(f"Secret message (UTF-8): {secret_message}")
     print(f"Secret message length: {len(plaintext)} bytes")
-    print("Encryption: ENABLED (AES-CBC + PKCS#7)")
+    print("Encryption:", "ENABLED (AES-CBC + PKCS#7)" if encrypt else "DISABLED")
     print("Key-based random embedding: ENABLED (SHA-256 seeded ordering)")
     print(f"Energy-adaptive embedding: ENABLED (energy_percentile={energy_percentile})")
+    if robust_repeat > 1:
+        print(f"Robustness layer: ENABLED (repeat={robust_repeat}, interleave={robust_interleave})")
+    else:
+        print("Robustness layer: DISABLED")
 
     embed_adaptive_keyed(
         cover_wav_path=cover_path,
@@ -97,9 +131,9 @@ def main() -> int:
         frame_size=FRAME_SIZE,
         hop_size=HOP_SIZE,
         energy_percentile=energy_percentile,
-        encrypt=True,
-        robust_repeat=1,
-        robust_interleave=True,
+        encrypt=encrypt,
+        robust_repeat=robust_repeat,
+        robust_interleave=robust_interleave,
     )
 
     stats = compute_sample_change_stats(cover_path, stego_path)
@@ -107,7 +141,12 @@ def main() -> int:
     ber_lsb = compute_lsb_ber(cover_path, stego_path)
 
     print("\n[Payload Accounting]")
-    print(f"Ciphertext length (IV + CT): {len(ciphertext)} bytes")
+    if encrypt:
+        print(f"Ciphertext length (IV + CT): {len(aes_encrypt(plaintext, key_bytes))} bytes")
+    else:
+        print(f"Plaintext payload length: {len(plaintext)} bytes")
+    if robust_repeat > 1 or not robust_interleave:
+        print(f"Robust-encoded payload length: {len(payload_bytes)} bytes")
     print(f"Header length: 8 bytes (ASTG + payload length)")
     print(f"Bits used (header + ciphertext): {bits_used_total}")
     print(f"Estimated flips (~50% of used bits): {bits_used_total/2:.0f}")
@@ -122,9 +161,9 @@ def main() -> int:
         frame_size=FRAME_SIZE,
         hop_size=HOP_SIZE,
         energy_percentile=energy_percentile,
-        decrypt=True,
-        robust_repeat=1,
-        robust_interleave=True,
+        decrypt=encrypt,
+        robust_repeat=robust_repeat,
+        robust_interleave=robust_interleave,
     )
 
     ok = recovered == plaintext
@@ -158,34 +197,34 @@ def main() -> int:
         cover_path,
         stego_path,
         num_samples=5000,
-        save_path=str(out_dir / "low_energy_waveform.png"),
+        save_path=str(out_dir / f"case_e{ep_label}_waveform.png"),
         report_stats=False,
     )
     plot_snr_and_noise(
         cover_path,
         stego_path,
-        save_path=str(out_dir / "low_energy_snr_noise.png"),
+        save_path=str(out_dir / f"case_e{ep_label}_snr_noise.png"),
         report_stats=False,
     )
     plot_spectrogram_comparison(
         cover_path,
         stego_path,
-        save_path=str(out_dir / "low_energy_spectrogram.png"),
+        save_path=str(out_dir / f"case_e{ep_label}_spectrogram.png"),
         show_difference=True,
         report_stats=False,
     )
     plot_bit_difference_heatmap(
         cover_path,
         stego_path,
-        save_path=str(out_dir / "low_energy_lsb_heatmap.png"),
+        save_path=str(out_dir / f"case_e{ep_label}_lsb_heatmap.png"),
         report_stats=False,
     )
 
     print("\n[Saved Figures]")
-    print("-", out_dir / "low_energy_waveform.png")
-    print("-", out_dir / "low_energy_snr_noise.png")
-    print("-", out_dir / "low_energy_spectrogram.png")
-    print("-", out_dir / "low_energy_lsb_heatmap.png")
+    print("-", out_dir / f"case_e{ep_label}_waveform.png")
+    print("-", out_dir / f"case_e{ep_label}_snr_noise.png")
+    print("-", out_dir / f"case_e{ep_label}_spectrogram.png")
+    print("-", out_dir / f"case_e{ep_label}_lsb_heatmap.png")
 
     return 0
 
