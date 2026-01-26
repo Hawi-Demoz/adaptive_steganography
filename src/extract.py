@@ -3,6 +3,7 @@ import soundfile as sf
 import numpy as np
 from .keyed_adaptive import generate_order_indices
 from .encrypt import aes_decrypt
+from .robust_payload import decode_payload
 
 PREAMBLE = b"ASTG"
 
@@ -59,6 +60,8 @@ def extract_adaptive_keyed(
     energy_percentile: float = 0.0,
     decrypt: bool = True,
     max_total_bytes_hint: int | None = None,
+    robust_repeat: int = 1,
+    robust_interleave: bool = True,
 ):
     """
     Reverse of embed_adaptive_keyed. Uses the same deterministic ordering to read bits.
@@ -94,6 +97,13 @@ def extract_adaptive_keyed(
     bytes_all = _bits_to_bytes(bits)
     payload = bytes_all[8:8+length]
     print(f"Extracted payload of length {length} bytes (adaptive+keyed).")
+
+    if robust_repeat > 1 or not robust_interleave:
+        decoded = decode_payload(payload, key=user_key, repeat=robust_repeat, interleave=robust_interleave)
+        if decoded is None:
+            print("Robust decode failed (CRC/ECC).")
+            return None
+        payload = decoded
 
     if decrypt:
         try:

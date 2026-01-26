@@ -31,6 +31,8 @@ def cmd_embed(args: argparse.Namespace):
         hop_size=args.hop_size,
         energy_percentile=args.energy_percentile,
         encrypt=not args.no_encrypt,
+        robust_repeat=args.robust_repeat,
+        robust_interleave=not args.no_interleave,
     )
 
     if args.snr_against:
@@ -48,6 +50,8 @@ def cmd_extract(args: argparse.Namespace):
         hop_size=args.hop_size,
         energy_percentile=args.energy_percentile,
         decrypt=not args.no_decrypt,
+        robust_repeat=args.robust_repeat,
+        robust_interleave=not args.no_interleave,
     )
     if payload is None:
         print(
@@ -96,6 +100,8 @@ def main():
     pe.add_argument('--hop-size', type=int, default=512)
     pe.add_argument('--energy-percentile', type=float, default=0.0)
     pe.add_argument('--no-encrypt', action='store_true', help='Disable AES encryption')
+    pe.add_argument('--robust-repeat', type=int, default=1, help='Enable robustness layer using repetition coding (odd >= 1). 1 disables.')
+    pe.add_argument('--no-interleave', action='store_true', help='Disable robustness interleaving (advanced)')
     pe.add_argument('--snr-against', action='store_true', help='Print SNR vs cover after embedding')
     pe.set_defaults(func=cmd_embed)
 
@@ -106,6 +112,8 @@ def main():
     px.add_argument('--hop-size', type=int, default=512)
     px.add_argument('--energy-percentile', type=float, default=0.0)
     px.add_argument('--no-decrypt', action='store_true', help='Disable AES decryption')
+    px.add_argument('--robust-repeat', type=int, default=1, help='Robustness repetition factor used at embedding (must match).')
+    px.add_argument('--no-interleave', action='store_true', help='Disable robustness interleaving (must match embed).')
     px.add_argument('--cover', type=Path, help='Original cover WAV for SNR/BER metrics')
     px.add_argument('--metrics', action='store_true', help='Print SNR/BER before/after embedding (requires --cover)')
     outg = px.add_mutually_exclusive_group()

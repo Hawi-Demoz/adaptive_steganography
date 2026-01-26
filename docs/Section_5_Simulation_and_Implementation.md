@@ -1,155 +1,193 @@
 5. Simulation and Implementation
 
+This section documents the simulation workflow used to evaluate the adaptive audio steganography system, focusing on **(i) energy adaptivity level** and **(ii) secret message length** and how each changes the observed waveform differences and quantitative metrics.
+
 5.1 Simulation Environment
 
-This project is implemented and evaluated entirely in a **Python-based simulation environment** (offline processing). No MATLAB/Simulink or hardware capture–playback loop is used in the current implementation.
+Description of tools used
+- **Python (offline simulation)**: The system is implemented and evaluated using offline WAV processing (no MATLAB/Simulink or hardware-in-the-loop).
+- **NumPy**: vectorized array processing; bit packing/unpacking; deterministic RNG behavior.
+- **SoundFile**: WAV I/O with `int16` PCM fidelity.
+- **Matplotlib**: generation of waveform comparison plots and noise/SNR plots.
+- **PyCryptodome**: AES encryption/decryption (AES-CBC with PKCS#7 padding) when `encrypt=True`.
 
-Tools and Libraries
-- **Python 3.10+** (recommended)
-- **NumPy**: array operations, bit packing/unpacking, deterministic RNG
-- **SciPy**: signal analysis utilities (e.g., spectrogram computation used for visualization)
-- **SoundFile**: WAV file I/O (read/write PCM 16‑bit)
-- **Matplotlib**: figure generation (waveforms, spectrograms, BER curves, heatmaps)
-- **PyCryptodome**: AES encryption/decryption (AES‑CBC with PKCS#7 padding)
-- **SoundDevice** (optional): used for the live spectrogram viewer in `live_view.py`
-
-Justification for Tool Selection
-- Python + NumPy/SciPy provide a **reproducible, lightweight** environment for DSP simulation and analysis.
-- SoundFile supports **reliable PCM WAV** I/O without manual parsing.
-- Matplotlib enables publication‑ready figures for a thesis.
-- PyCryptodome provides a standard AES implementation, allowing the project to focus on steganographic design rather than cryptographic re‑implementation.
-
-Key Project Scripts (Simulation/Experiments)
-- `src/cli.py`: non‑interactive CLI for embedding and extraction.
-- `src/sim_cli.py`: interactive simulation workflow (embed/extract + metrics + figure generation).
-- `src/viz_demo.py`: generates a standard suite of figures into `figures/`.
-- `src/visualize.py`: plotting functions, including BER vs AWGN SNR.
-- `src/tests.py`: simple round‑trip verification script.
+Justification for tool selection
+- Python provides a reproducible DSP simulation environment with fast iteration and easy instrumentation.
+- NumPy + SoundFile allow precise `int16`-domain operations (important for LSB replacement).
+- Matplotlib produces publication-ready figures directly into `figures/run_*` folders.
+- PyCryptodome provides a standard cryptographic primitive so the thesis can focus on steganographic design (not custom crypto).
 
 5.2 Model Development
 
-This section describes how the embedding/extraction “model” was built step‑by‑step, matching the implemented modules.
+Step-by-step process for model creation
 
 Step 1 — Payload framing
-- A fixed header is prepended to every payload:
-  - **Preamble**: `ASTG` (4 bytes)
-  - **Length**: 4 bytes (big‑endian)
-  - **Payload**: plaintext or ciphertext bytes
+- The embedded bitstream is: `ASTG` preamble (4 bytes) + payload length (4 bytes, big-endian) + payload bytes.
+- Header size is fixed at 8 bytes = 64 bits.
 
-Step 2 — Optional AES encryption (confidentiality)
-- If encryption is enabled, plaintext is encrypted using **AES‑CBC** with **PKCS#7 padding**.
-- A random 16‑byte IV is generated per message and stored as `iv || ciphertext`.
+Step 2 — Optional encryption (confidentiality)
+- If enabled, the payload is encrypted using AES-CBC with PKCS#7 padding.
+- Encrypted payload includes a random 16-byte IV: `payload = IV || ciphertext`.
 
-Step 3 — Energy analysis (content adaptivity)
-- The audio is divided into frames of size `frame_size` with hop `hop_size`.
-- Frame energy is estimated using RMS:
+Step 3 — Energy-based content analysis (adaptivity)
+- Audio is segmented into overlapping frames (`frame_size`, `hop_size`).
+- Frame energy uses RMS:
 
-  $$\mathrm{RMS}(k) = \sqrt{\frac{1}{N_k}\sum_{n\in \text{frame }k} x[n]^2}$$
+  $$\mathrm{RMS}(k) = \sqrt{\frac{1}{N_k}\sum_{n\in k} x[n]^2}$$
 
-- RMS values are normalized to a score in $[0,1]$ and optionally thresholded by an `energy_percentile` parameter to deprioritize low‑energy frames.
+- RMS values are normalized to a score in $[0,1]$. Frames below `energy_percentile` are strongly de-prioritized.
 
 Important implementation detail (ordering stability)
-- In `generate_order_indices()`, energy is computed on a version of the audio with **LSB cleared**: `data_energy = data & ~1`.
-- This avoids tiny RMS drift between cover and stego caused by LSB flips and helps ensure **the ordering is identical** during extraction.
+- Energy is computed on `x & ~1` (LSB cleared) so the ordering does not drift between cover and stego.
 
-Step 4 — Keyed deterministic ordering (position selection)
-- A deterministic RNG seed is derived from the user key via SHA‑256.
-- A random value is generated per sample: $r[n] \sim U(0,1)$.
-- A per‑sample priority score is assigned from the frame energy score.
-- An ordering key is computed (smaller = earlier):
+Step 4 — Keyed deterministic ordering (where embedding happens)
+- A deterministic RNG is seeded from the user key (SHA-256 based).
+- For each sample $n$, a random value $r[n] \sim U(0,1)$ is generated.
+- Each sample inherits a frame score `score[n]` from the frame it belongs to.
+- Samples are ranked by:
 
   $$\mathrm{ord\_key}[n] = \frac{r[n]}{\mathrm{score}[n] + \epsilon}$$
 
-- Indices are sorted using a **stable sort** to obtain an ordering that is **prefix‑stable** (independent of message length).
+  Smaller values are embedded earlier. A stable sort ensures the ordering is prefix-stable.
 
 Step 5 — LSB embedding (time-domain)
-- Payload bytes are converted to bits and embedded by replacing the LSB of selected `int16` samples:
+- For each selected sample index $i$ and next payload bit $b \in \{0,1\}$:
 
   $$y[i] = (x[i] \ \&\ \sim 1)\ \vert\ b$$
 
-  where $b\in\{0,1\}$ is the next payload bit.
-
 Step 6 — Extraction
-- The same ordering is recomputed from stego audio + key + parameters.
-- The first 64 bits are read to recover `ASTG + length`.
-- The payload bits are read according to the length.
-- If enabled, AES decryption is performed to recover the plaintext.
+- The same ordering is recomputed using the same key and parameters.
+- First 64 bits decode `ASTG + length`, then the payload is read.
+- If encryption is enabled, AES decryption is applied to recover plaintext.
 
 5.3 Simulation Setup and Configuration
 
-Input Assumptions
-- Input is **WAV PCM 16‑bit**.
-- If input is stereo, the implementation uses the **first channel** only.
-- Processing is offline (batch/simulation), not real‑time.
+Input parameters and assumptions
+- Cover audio: `data/original/sample.wav` (mono used; if stereo, the first channel is used).
+- Cover length: **262,094 samples** at **44.1 kHz** (duration $\approx$ **5.94 s**).
+- Sample type: `int16` PCM.
 
-Core Parameters
-- `frame_size`: default 1024 samples
-- `hop_size`: default 512 samples
-- `energy_percentile`: controls adaptivity strength (common values used in the project: 0, 20, 40)
-- `key/passphrase`: used to derive 16‑byte AES key bytes (SHA‑256 truncation in CLI)
-- `encrypt/decrypt`: toggles AES usage
+Core configuration (default)
+- `frame_size = 1024` samples
+- `hop_size = 512` samples
+- `energy_percentile \in \{0, 20, 40\}` (used as “energy adaptivity level”)
+- Secret message length: `message_len_bytes \in \{16, 256, 2048\}`
 
-Capacity and Overhead
-- Header overhead is 8 bytes (preamble + length) = 64 bits.
-- AES adds a 16‑byte IV plus ciphertext padding overhead.
-- Capacity depends on audio length and how many indices remain available after energy thresholding.
+Simulation sweep design
+- The reproducible sweep is implemented in `src/sweep_experiments.py` and writes:
+  - `figures/run_YYYYMMDD_HHMMSS/sweep_results.csv`
+  - `figures/run_YYYYMMDD_HHMMSS/sweep_results.md`
+  - waveform plots `waveform_*.png`
+  - noise/SNR plots `snr_noise_*.png`
 
-AWGN Robustness Simulation (BER vs SNR)
-- AWGN is added to the stego signal at a target SNR (dB). Noise variance is chosen from the signal power:
+Boundary conditions
+- `int16` range: samples are constrained to $[-32768, 32767]$.
+- LSB embedding guarantees `max_abs_diff = 1` (the waveform difference is bounded by 1 quantization step).
+- Successful extraction requires matching: `frame_size`, `hop_size`, `energy_percentile`, and the correct key.
 
-  $$\mathrm{SNR}_{\mathrm{lin}} = 10^{\mathrm{SNR}_{\mathrm{dB}}/10}$$
-  $$P_{\mathrm{noise}} = \frac{P_{\mathrm{sig}}}{\mathrm{SNR}_{\mathrm{lin}}}$$
-  $$\sigma = \sqrt{P_{\mathrm{noise}}}$$
+How to run the simulation
+- Parameter sweep (energy level × message length):
 
-- The noisy signal is rounded and clipped back into the `int16` range before extracting bits.
-- In `plot_ber_vs_awgn()`, a fixed RNG seed is used for repeatability.
+  ```powershell
+  python -m src.sweep_experiments
+  ```
 
-Boundary Conditions
-- Audio sample range is limited to `[-32768, 32767]` by `int16` clipping.
-- Extraction requires that `frame_size`, `hop_size`, and `energy_percentile` match embedding settings.
-
-How to Run the Simulation Workflows
-- Interactive simulation:
+- Interactive embed/extract with metrics:
 
   ```powershell
   python -m src.sim_cli
   ```
 
-- Batch figure generation:
-
-  ```powershell
-  python -m src.viz_demo
-  ```
-
-- CLI embed/extract:
-
-  ```powershell
-  python -m src.cli embed --cover data/original/sample.wav --out data/stego/stego.wav --key "my key" --msg "hello" --energy-percentile 20
-  python -m src.cli extract --stego data/stego/stego.wav --key "my key" --out-text --energy-percentile 20
-  ```
-
 5.4 Results and Analysis
 
-This section summarizes the key outputs produced by the simulation scripts and how they map to the design objectives.
+Presentation of key results (tables/figures)
 
-Key Result Types (Graphs/Tables)
-- **Waveform comparison**: illustrates that the stego waveform closely overlaps the cover waveform; modified samples appear sparse.
-- **Spectrogram comparison**: shows that spectral energy distribution remains visually similar; the “noise spectrogram” is typically far below the main signal level.
-- **SNR and noise histogram/time plot**: quantifies embedding distortion as low‑level noise.
-- **LSB modification heatmap**: visualizes where LSB flips occur across time (block index) and within blocks.
-- **BER vs AWGN SNR curve**: demonstrates robustness behavior under additive noise.
+All results below were generated by the sweep run:
+- `figures/run_20260126_122629/sweep_results.md`
+- Waveform comparison plots: `figures/run_20260126_122629/waveform_*.png`
+- Noise/SNR plots: `figures/run_20260126_122629/snr_noise_*.png`
 
-Interpretation Relative to Objectives
-- **Imperceptibility objective**: High SNR and a low fraction of changed samples support that embedding noise is small. Concentrating embedding in higher‑energy regions improves perceptual masking.
-- **Reliability objective**: In the noiseless case and with correct key/parameters, extraction should recover the full plaintext (payload BER = 0).
-- **Robustness objective**: Under AWGN, BER is expected to be low at high SNR and increase as SNR decreases (a monotonic trend).
+Summary table (energy adaptivity level vs. message length)
 
-Common Observations and Expected Behaviors
-- **~50% LSB flip rate in used positions**: Because embedded bits are effectively random (especially when AES is enabled), approximately half of the written bits differ from the original LSBs, producing ~50% flips among the used positions. This is reported in `sim_cli.py` as an “estimated flips” value.
-- **Decryption failures under heavy noise**: AES‑CBC decryption may fail with padding errors if extracted ciphertext is corrupted by noise (an expected behavior without error‑control coding).
-- **Parameter mismatch sensitivity**: Using a different energy percentile/frame size/hop size at extraction can change the ordering and prevent the preamble from being found.
+| energy_percentile | message_len_bytes | encrypt | bits_used_total | fraction_changed | snr_db | frac_mod_in_top_energy_frames | extraction_ok | payload_bit_ber |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 0.000000 | 16 | False | 192 | 0.039% | 101.02 | 41.584% | True | 0.000000 |
+| 0.000000 | 256 | False | 2112 | 0.396% | 91.24 | 42.775% | True | 0.000000 |
+| 0.000000 | 2048 | False | 16448 | 3.098% | 82.34 | 45.961% | True | 0.000000 |
+| 20.000000 | 16 | False | 192 | 0.035% | 101.43 | 43.956% | True | 0.000000 |
+| 20.000000 | 256 | False | 2112 | 0.398% | 91.22 | 45.298% | True | 0.000000 |
+| 20.000000 | 2048 | False | 16448 | 3.127% | 82.30 | 45.711% | True | 0.000000 |
+| 40.000000 | 16 | False | 192 | 0.036% | 101.26 | 43.158% | True | 0.000000 |
+| 40.000000 | 256 | False | 2112 | 0.436% | 90.82 | 48.164% | True | 0.000000 |
+| 40.000000 | 2048 | False | 16448 | 3.153% | 82.26 | 47.326% | True | 0.000000 |
+| 20.000000 | 256 | True | 2368 | 0.448% | 90.71 | 45.610% | True | 0.000000 |
 
-Discrepancies / Limitations (Discussion)
-- **No compression robustness**: Time‑domain LSB is generally fragile to lossy compression or resampling; this thesis implementation evaluates AWGN only.
-- **Deterministic AWGN in plotting**: The BER curve uses a fixed RNG seed for repeatability; multiple seeds would show variance bands.
-- **Energy adaptivity simplification**: Frame‑level RMS is a simple proxy for masking; no psychoacoustic model is implemented.
+Interpretation of results in the context of design objectives
+
+Effect of secret message length (capacity vs. distortion)
+- Increasing `message_len_bytes` increases the number of embedded bits, which increases how many samples are modified.
+- The observed relationship matches the expected LSB behavior:
+  - For random payload bits, about **50%** of the written LSBs differ from the cover LSBs.
+  - Therefore, expected modified samples $\approx 0.5 \times \mathrm{bits\_used\_total}$.
+- Example (energy_percentile = 0):
+  - 16 B payload: 192 bits used → ~96 expected flips; observed fraction changed = 0.039%.
+  - 256 B payload: 2112 bits used → ~1056 expected flips; observed fraction changed = 0.396%.
+  - 2048 B payload: 16448 bits used → ~8224 expected flips; observed fraction changed = 3.098%.
+- SNR decreases with longer payloads because more LSB changes raise the overall noise power:
+  - ~101 dB (16 B) → ~91 dB (256 B) → ~82 dB (2048 B).
+- Waveform difference interpretation:
+  - In `waveform_*.png`, the cover and stego waveforms visually overlap.
+  - The difference is bounded to ±1 LSB per modified sample (consistent with `max_abs_diff = 1`), so even at 2048 B the visible difference is small.
+
+Effect of energy adaptivity level (where modifications occur)
+- `energy_percentile` does **not** primarily control “how much” noise is added (payload length controls that); it controls **where** the changes concentrate.
+- This is quantified by `frac_mod_in_top_energy_frames` (fraction of modified samples that fall in the top 20% highest-energy frames):
+  - For 256 B payload, `frac_mod_in_top_energy_frames` increases from **42.8% (e=0)** to **48.2% (e=40)**.
+- Practical interpretation in the plots:
+  - In `snr_noise_*.png`, higher `energy_percentile` tends to concentrate the noise waveform in louder regions (better perceptual masking).
+  - This supports the imperceptibility objective: modifications are placed where the human auditory system is less sensitive.
+
+Effect of encryption (security overhead)
+- For the 256 B reference case, enabling AES increases `bits_used_total` from **2112** to **2368** due to IV + padding overhead.
+- The fraction changed increases accordingly (0.398% → 0.448%) with a small SNR decrease (91.22 dB → 90.71 dB).
+- Extraction remains correct (`payload_bit_ber = 0`) when the correct key and matching parameters are used.
+
+Limitations / notes
+- This section evaluates imperceptibility and correct extraction in the noiseless case. The current implementation improves **security** (AES + key-based ordering) and **imperceptibility** (energy adaptivity), but **true robustness to MP3/AAC compression and resampling is not fully addressed yet**.
+
+Practical methods to improve robustness (recommended roadmap)
+
+1) Add error-control coding (ECC) + interleaving (best “first upgrade”)
+- Apply an ECC to the encrypted payload before embedding (e.g., BCH / Reed–Solomon / LDPC) and interleave bits across time.
+- Why it helps: small bit errors caused by mild processing/noise become correctable, improving extraction reliability without changing the audio model.
+- Expected impact: improves robustness to AWGN, mild filtering, and small perturbations; limited improvement for heavy lossy compression unless combined with transform-domain embedding.
+
+2) Add synchronization + resampling tolerance
+- Introduce a strong sync header/pilot sequence repeated periodically (not just a single preamble at the beginning).
+- Use correlation to re-find payload start after trimming, time-shift, or small speed changes.
+- Why it helps: resampling/time-scale changes break sample-aligned LSB indexing; synchronization makes extraction possible even when alignment drifts.
+
+3) Move from time-domain LSB to transform-domain embedding (needed for MP3-style robustness)
+- MP3/AAC operate in a transform domain (MDCT-like). To survive them, embed into features that remain stable after quantization:
+  - STFT magnitude-bin embedding (mid-frequency bands)
+  - Wavelet/DWT coefficient embedding
+  - MDCT/cepstral feature embedding (more aligned with perceptual codecs)
+- Use quantization-based schemes such as QIM:
+  $$c' = Q_\Delta(c, b)$$
+  where $c$ is a transform coefficient, $b$ is the bit, and $Q_\Delta$ enforces one of two quantizers.
+
+4) Use spread-spectrum / redundancy across frames
+- Spread each payload bit across many coefficients/samples (direct-sequence spread spectrum), then recover via correlation.
+- Why it helps: lossy compression behaves like noise + quantization; spreading makes the bit decision more robust at the cost of capacity.
+
+5) Perceptual masking model (stronger adaptivity)
+- Replace simple RMS gating with a psychoacoustic masking estimate (critical bands, masking thresholds).
+- Why it helps: allows stronger embedding where it is perceptually hidden, enabling more redundancy/ECC without audible artifacts.
+
+6) Integrity/authentication (robustness against tampering)
+- Add a keyed MAC (or AEAD like AES-GCM) over the plaintext before embedding.
+- Why it helps: prevents undetected modification; complements confidentiality.
+
+Summary
+- Your current “AES + keyed random positions + energy adaptivity” already fixes the major weaknesses of *traditional sequential plaintext LSB* (security, predictability, and perceptual quality).
+- To claim robustness against compression/resampling in the thesis, the key technical step is: **add ECC + synchronization** and, for MP3/AAC, **switch to transform-domain (QIM/spread-spectrum) embedding**.

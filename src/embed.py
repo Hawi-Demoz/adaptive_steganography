@@ -4,6 +4,7 @@ import soundfile as sf
 import numpy as np
 from .keyed_adaptive import generate_order_indices
 from .encrypt import aes_encrypt
+from .robust_payload import encode_payload
 
 PREAMBLE = b"ASTG"  # 4 bytes to identify start
 
@@ -72,6 +73,8 @@ def embed_adaptive_keyed(
     hop_size: int = 512,
     energy_percentile: float = 0.0,
     encrypt: bool = True,
+    robust_repeat: int = 1,
+    robust_interleave: bool = True,
 ):
     """
     Adaptive, key-based embedding.
@@ -90,6 +93,8 @@ def embed_adaptive_keyed(
     )
 
     payload = aes_encrypt(plaintext, user_key) if encrypt else plaintext
+    if robust_repeat > 1 or not robust_interleave:
+        payload = encode_payload(payload, key=user_key, repeat=robust_repeat, interleave=robust_interleave)
 
     length_bytes = len(payload).to_bytes(4, 'big')
     full_payload = PREAMBLE + length_bytes + payload
