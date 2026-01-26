@@ -218,6 +218,132 @@ Figures produced for this run
 - `figures/run_20260126_130832/low_energy_spectrogram.png`
 - `figures/run_20260126_130832/low_energy_lsb_heatmap.png`
 
+Low energy level (interactive CLI) simulation log and comparison
+
+In addition to the scripted case study above, the interactive simulator (`python -m src.sim_cli`) was used to record multiple **low energy** runs (`energy_percentile = 0.0`) while varying the **secret message length**. This documents the user-facing embedding/extraction workflow and shows the expected trend: **as payload length increases, SNR decreases and the LSB BER (cover vs stego) increases**.
+
+Common setup across all low-energy interactive runs
+- Cover WAV: `data/original/sample.wav` (44.1 kHz, 262,094 samples)
+- Energy adaptivity level: `low` → `energy_percentile = 0.0`
+- Encryption: enabled (`Enable AES encryption? y` → AES-CBC)
+- Key/passphrase: `DecibelGhost`
+- Output stego file: `data/stego/stego.wav`
+
+Concepts used (what makes it “adaptive and secure”)
+- **AES encryption:** the embedded payload is ciphertext (confidentiality even if bits are extracted).
+- **Key-based random embedding:** embedding locations come from a key-seeded ordering (non-sequential, resists simple steganalysis patterns).
+- **Energy-aware ordering:** at low energy level (0th percentile), the algorithm does not aggressively suppress low-energy frames; it still remains keyed and deterministic.
+- **Header + payload framing:** `ASTG` + length header allows extraction to recover payload size deterministically.
+
+Run A — Short secret message (TOP_SECRET_2024)
+
+Terminal record
+
+```text
+Enter secret message (text): TOP_SECRET_2024
+Enter embedding key / passphrase: DecibelGhost
+Enable AES encryption? [Y/n]: y
+Energy adaptivity level (low / medium / high): low
+
+Embedded (adaptive+keyed) 32 bytes into data\stego\stego.wav (samples used: 320)
+
+[Embedding Utilization]
+Bits used (header + payload): 320
+Estimated flips (~50% of used): 160
+Actual flips: 156 / 262094 (0.0595%)
+
+[Performance Metrics]
+SNR: 99.26 dB
+Payload BER: 0.000000
+LSB BER (cover vs stego): 0.000595
+
+[Output]
+Secret message is = TOP_SECRET_2024
+```
+
+Figures saved
+- `figures/run_20260126_125854/waveform_comparison.png`
+- `figures/run_20260126_125854/spectrogram_comparison.png`
+- `figures/run_20260126_125854/snr_and_noise.png`
+- `figures/run_20260126_125854/bit_difference_heatmap.png`
+
+Run B — Medium message (definition-style paragraph)
+
+Terminal record
+
+```text
+Enter secret message (text): Steganography is the art and science of hiding information by embedding messages within other, seemingly harmless messages.
+Enter embedding key / passphrase: DecibelGhost
+Enable AES encryption? [Y/n]: y
+Energy adaptivity level (low / medium / high): low
+
+Embedded (adaptive+keyed) 144 bytes into data\stego\stego.wav (samples used: 1216)
+
+[Embedding Utilization]
+Bits used (header + payload): 1216
+Estimated flips (~50% of used): 608
+Actual flips: 599 / 262094 (0.2285%)
+
+[Performance Metrics]
+SNR: 93.60 dB
+Payload BER: 0.000000
+LSB BER (cover vs stego): 0.002285
+
+[Output]
+Secret message is = Steganography is the art and science of hiding information by embedding messages within other, seemingly harmless messages.
+```
+
+Figures saved
+- `figures/run_20260126_130046/waveform_comparison.png`
+- `figures/run_20260126_130046/spectrogram_comparison.png`
+- `figures/run_20260126_130046/snr_and_noise.png`
+- `figures/run_20260126_130046/bit_difference_heatmap.png`
+
+Run C — Longer message (hundreds of bytes)
+
+Terminal record
+
+```text
+Enter secret message (text): If the message is to be kept secret, the communicator must first encrypt it, then hide it. Throughout history, the battle between codemakers and codebreakers has influenced the outcome of wars and the fate of nations. Steganography represents the hidden side of this battle, where the very existence of the message is the ultimate secret." (Repeat 4-5 times for ~2000 bytes).
+Enter embedding key / passphrase: DecibelGhost
+Enable AES encryption? [Y/n]: y
+Energy adaptivity level (low / medium / high): low
+
+Embedded (adaptive+keyed) 400 bytes into data\stego\stego.wav (samples used: 3264)
+
+[Embedding Utilization]
+Bits used (header + payload): 3264
+Estimated flips (~50% of used): 1632
+Actual flips: 1642 / 262094 (0.6265%)
+
+[Performance Metrics]
+SNR: 89.26 dB
+Payload BER: 0.000000
+LSB BER (cover vs stego): 0.006265
+
+[Output]
+Secret message is = If the message is to be kept secret, the communicator must first encrypt it, then hide it. Throughout history, the battle between codemakers and codebreakers has influenced the outcome of wars and the fate of nations. Steganography represents the hidden side of this battle, where the very existence of the message is the ultimate secret." (Repeat 4-5 times for ~2000 bytes).
+```
+
+Figures saved
+- `figures/run_20260126_130255/waveform_comparison.png`
+- `figures/run_20260126_130255/spectrogram_comparison.png`
+- `figures/run_20260126_130255/snr_and_noise.png`
+- `figures/run_20260126_130255/bit_difference_heatmap.png`
+
+Comparison summary (low energy level, varying message length)
+
+| Run | Embedded payload bytes (ciphertext) | Bits used total | LSB flips | Fraction changed | SNR (dB) | LSB BER (cover vs stego) | Payload BER | Extraction |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A | 32 | 320 | 156 | 0.0595% | 99.26 | 0.000595 | 0.000000 | Success |
+| B | 144 | 1216 | 599 | 0.2285% | 93.60 | 0.002285 | 0.000000 | Success |
+| C | 400 | 3264 | 1642 | 0.6265% | 89.26 | 0.006265 | 0.000000 | Success |
+
+Interpretation
+- **Correctness:** all three runs recover the plaintext perfectly (payload BER = 0, extracted message matches).
+- **Payload length effect:** increasing message size increases `bits used` and increases the number of LSB flips, which increases the global distortion and reduces SNR.
+- **Waveform/spectrogram behavior:** waveform plots show near-complete overlap of cover vs stego; spectrogram difference plots show the embedding noise is low-level and broadly distributed.
+
 Limitations / notes
 - This section evaluates imperceptibility and correct extraction in the noiseless case. The current implementation improves **security** (AES + key-based ordering) and **imperceptibility** (energy adaptivity), but **true robustness to MP3/AAC compression and resampling is not fully addressed yet**.
 
