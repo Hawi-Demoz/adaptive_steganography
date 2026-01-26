@@ -453,22 +453,25 @@ Interpretation
 - **Imperceptibility (perceptual masking):** the localization metric increases with energy percentile, meaning a larger fraction of modifications occur in the loudest regions, where they are harder to perceive.
 
 Limitations / notes
-- This section evaluates imperceptibility and correct extraction in the noiseless case. The current implementation improves **security** (AES + key-based ordering) and **imperceptibility** (energy adaptivity), but **true robustness to MP3/AAC compression and resampling is not fully addressed yet**.
+- The results above evaluate imperceptibility and correct extraction in the noiseless case. The current implementation directly addresses major weaknesses of traditional LSB (security, predictability, and perceptual quality) via **AES encryption**, **key-based deterministic embedding positions**, and **energy-aware embedding**.
+- A lightweight robustness layer is available in the codebase (optional) using **redundancy + interleaving + integrity checking** (see `src/robust_payload.py`, enabled via `--robust-repeat` in `src/cli.py`). This improves recovery under **random bit flips** (e.g., AWGN / mild distortions), at the cost of additional embedded bits (lower SNR).
+- However, **robustness to lossy compression (MP3/AAC) and resampling/time-scale changes is not fully solved yet**. Those operations change the sample values and timing structure in ways that time-domain LSB is inherently sensitive to.
 
 Practical methods to improve robustness (recommended roadmap)
 
-1) Add error-control coding (ECC) + interleaving (best “first upgrade”)
-- Apply an ECC to the encrypted payload before embedding (e.g., BCH / Reed–Solomon / LDPC) and interleave bits across time.
+1) Stronger error-control coding (ECC) + interleaving
+- What exists now: a simple redundancy-based scheme (repetition + majority vote) with key-seeded interleaving and CRC integrity checking.
+- Next upgrade: replace/augment repetition with a true ECC (e.g., BCH / Reed–Solomon / LDPC) and keep interleaving.
 - Why it helps: small bit errors caused by mild processing/noise become correctable, improving extraction reliability without changing the audio model.
 - Expected impact: improves robustness to AWGN, mild filtering, and small perturbations; limited improvement for heavy lossy compression unless combined with transform-domain embedding.
 
-2) Add synchronization + resampling tolerance
-- Introduce a strong sync header/pilot sequence repeated periodically (not just a single preamble at the beginning).
+2) Add synchronization + resampling tolerance (not yet implemented)
+- Introduce a strong sync/pilot sequence repeated periodically (not just a single preamble at the beginning).
 - Use correlation to re-find payload start after trimming, time-shift, or small speed changes.
 - Why it helps: resampling/time-scale changes break sample-aligned LSB indexing; synchronization makes extraction possible even when alignment drifts.
 
-3) Move from time-domain LSB to transform-domain embedding (needed for MP3-style robustness)
-- MP3/AAC operate in a transform domain (MDCT-like). To survive them, embed into features that remain stable after quantization:
+3) Move from time-domain LSB to transform-domain embedding (required for MP3/AAC robustness)
+- MP3/AAC operate in a transform domain (MDCT-like). To survive them, embed into features that remain stable after codec quantization:
   - STFT magnitude-bin embedding (mid-frequency bands)
   - Wavelet/DWT coefficient embedding
   - MDCT/cepstral feature embedding (more aligned with perceptual codecs)
@@ -489,5 +492,5 @@ Practical methods to improve robustness (recommended roadmap)
 - Why it helps: prevents undetected modification; complements confidentiality.
 
 Summary
-- Your current “AES + keyed random positions + energy adaptivity” already fixes the major weaknesses of *traditional sequential plaintext LSB* (security, predictability, and perceptual quality).
-- To claim robustness against compression/resampling in the thesis, the key technical step is: **add ECC + synchronization** and, for MP3/AAC, **switch to transform-domain (QIM/spread-spectrum) embedding**.
+- Your current pipeline (“AES + keyed positions + energy adaptivity”) fixes the major weaknesses of *traditional sequential plaintext LSB* (security, predictability, and perceptual quality). An optional redundancy/interleaving layer further improves robustness to random bit errors.
+- To claim robustness against compression/resampling in the thesis (especially MP3/AAC), the required technical step is: **add synchronization** and **move to transform-domain embedding** (often with QIM/spread-spectrum), with ECC used as an inner protection layer.
