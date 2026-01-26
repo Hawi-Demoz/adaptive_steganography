@@ -344,6 +344,114 @@ Interpretation
 - **Payload length effect:** increasing message size increases `bits used` and increases the number of LSB flips, which increases the global distortion and reduces SNR.
 - **Waveform/spectrogram behavior:** waveform plots show near-complete overlap of cover vs stego; spectrogram difference plots show the embedding noise is low-level and broadly distributed.
 
+Medium energy level case study (energy_percentile = 20.0)
+
+This case uses the same cover file, the same encryption/keyed embedding method, and the same basic payload size as the low-energy thesis test, but increases the adaptivity level to the **20th percentile**. The goal is to observe how embedding becomes more concentrated in higher-energy regions.
+
+Terminal record
+
+```text
+============================================================
+Simulation Case (energy_percentile = 20.0)
+============================================================
+Cover WAV: data\original\sample.wav
+Output stego WAV: data\stego\stego_case_e20.wav
+Figures directory: figures\run_20260126_134454
+
+[Embedding Inputs]
+Secret message (UTF-8): THESIS TEST: This message is embedded using keyed adaptive LSB (energy_percentile=20.0) with AES encryption enabled.
+Secret message length: 116 bytes
+Encryption: ENABLED (AES-CBC + PKCS#7)
+Key-based random embedding: ENABLED (SHA-256 seeded ordering)
+Energy-adaptive embedding: ENABLED (energy_percentile=20.0)
+Robustness layer: DISABLED
+Embedded (adaptive+keyed) 144 bytes into data\stego\stego_case_e20.wav (samples used: 1216)
+
+[Payload Accounting]
+Ciphertext length (IV + CT): 144 bytes
+Header length: 8 bytes (ASTG + payload length)
+Bits used (header + ciphertext): 1216
+Estimated flips (~50% of used bits): 608
+Actual flips (LSB changed): 638 / 262094 (0.2434%)
+
+[Performance Metrics]
+SNR (cover vs stego): 93.33 dB
+LSB BER (cover vs stego): 0.002434
+Localization: frac_mod_in_top_energy_frames (top 20%): 47.18%
+Payload BER (recovered vs original): 0.000000
+
+[Extraction Result]
+Extraction OK: True
+Recovered message (UTF-8): THESIS TEST: This message is embedded using keyed adaptive LSB (energy_percentile=20.0) with AES encryption enabled.
+```
+
+Figures produced
+- `figures/run_20260126_134454/case_e20_waveform.png`
+- `figures/run_20260126_134454/case_e20_snr_noise.png`
+- `figures/run_20260126_134454/case_e20_spectrogram.png`
+- `figures/run_20260126_134454/case_e20_lsb_heatmap.png`
+
+High energy level case study (energy_percentile = 40.0)
+
+This case increases the adaptivity level to the **40th percentile** while keeping the same embedding pipeline. This further biases embedding toward high-energy frames, which is expected to improve perceptual masking (changes occur more in loud/complex regions).
+
+Terminal record
+
+```text
+============================================================
+Simulation Case (energy_percentile = 40.0)
+============================================================
+Cover WAV: data\original\sample.wav
+Output stego WAV: data\stego\stego_case_e40.wav
+Figures directory: figures\run_20260126_134513
+
+[Embedding Inputs]
+Secret message (UTF-8): THESIS TEST: This message is embedded using keyed adaptive LSB (energy_percentile=40.0) with AES encryption enabled.
+Secret message length: 116 bytes
+Encryption: ENABLED (AES-CBC + PKCS#7)
+Key-based random embedding: ENABLED (SHA-256 seeded ordering)
+Energy-adaptive embedding: ENABLED (energy_percentile=40.0)
+Robustness layer: DISABLED
+Embedded (adaptive+keyed) 144 bytes into data\stego\stego_case_e40.wav (samples used: 1216)
+
+[Payload Accounting]
+Ciphertext length (IV + CT): 144 bytes
+Header length: 8 bytes (ASTG + payload length)
+Bits used (header + ciphertext): 1216
+Estimated flips (~50% of used bits): 608
+Actual flips (LSB changed): 644 / 262094 (0.2457%)
+
+[Performance Metrics]
+SNR (cover vs stego): 93.29 dB
+LSB BER (cover vs stego): 0.002457
+Localization: frac_mod_in_top_energy_frames (top 20%): 47.20%
+Payload BER (recovered vs original): 0.000000
+
+[Extraction Result]
+Extraction OK: True
+Recovered message (UTF-8): THESIS TEST: This message is embedded using keyed adaptive LSB (energy_percentile=40.0) with AES encryption enabled.
+```
+
+Figures produced
+- `figures/run_20260126_134513/case_e40_waveform.png`
+- `figures/run_20260126_134513/case_e40_snr_noise.png`
+- `figures/run_20260126_134513/case_e40_spectrogram.png`
+- `figures/run_20260126_134513/case_e40_lsb_heatmap.png`
+
+Cross-energy comparison (same pipeline, same payload size)
+
+To isolate the impact of **energy adaptivity** (not message length), the following three runs use the same cover file and essentially the same ciphertext size (144 bytes). The key observation is that SNR and global flip rate remain similar, while the localization metric increases slightly with higher `energy_percentile`.
+
+| Energy percentile | Bits used | LSB flips | Fraction changed | SNR (dB) | LSB BER | frac_mod_in_top_energy_frames (top 20%) | Figure folder |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 0.0 | 1216 | 635 | 0.2423% | 93.35 | 0.002423 | 46.46% | `figures/run_20260126_134541/` |
+| 20.0 | 1216 | 638 | 0.2434% | 93.33 | 0.002434 | 47.18% | `figures/run_20260126_134454/` |
+| 40.0 | 1216 | 644 | 0.2457% | 93.29 | 0.002457 | 47.20% | `figures/run_20260126_134513/` |
+
+Interpretation
+- **Imperceptibility (global):** SNR remains around ~93.3 dB across energy levels for the same payload size, because total LSB modifications are similar.
+- **Imperceptibility (perceptual masking):** the localization metric increases with energy percentile, meaning a larger fraction of modifications occur in the loudest regions, where they are harder to perceive.
+
 Limitations / notes
 - This section evaluates imperceptibility and correct extraction in the noiseless case. The current implementation improves **security** (AES + key-based ordering) and **imperceptibility** (energy adaptivity), but **true robustness to MP3/AAC compression and resampling is not fully addressed yet**.
 

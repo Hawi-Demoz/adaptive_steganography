@@ -20,6 +20,7 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
+import soundfile as sf
 
 from .embed import embed_adaptive_keyed
 from .extract import extract_adaptive_keyed
@@ -35,6 +36,58 @@ from .visualize import (
 
 FRAME_SIZE = 1024
 HOP_SIZE = 512
+
+
+def _read_wav_mono_int16(path: str) -> tuple[np.ndarray, int]:
+    data, sr = sf.read(path, dtype="int16")
+    if data.ndim == 2:
+        data = data[:, 0]
+    return data.astype(np.int16), int(sr)
+
+
+def _rms_per_frame(x: np.ndarray, frame_size: int, hop_size: int) -> np.ndarray:
+    n = x.shape[0]
+    rms = []
+    for start in range(0, n, hop_size):
+        end = min(start + frame_size, n)
+        if start >= end:
+            break
+        frame = x[start:end].astype(np.float32)
+        rms.append(float(np.sqrt(np.mean(frame * frame))) if frame.size else 0.0)
+    return np.asarray(rms, dtype=np.float32)
+
+
+def _frac_modifications_in_top_energy_frames(
+    cover: np.ndarray,
+    modified_mask: np.ndarray,
+    *,
+    frame_size: int,
+    hop_size: int,
+    top_energy_percent: float = 20.0,
+) -> float:
+    if cover.size == 0:
+        return 0.0
+    if modified_mask.size == 0:
+        return 0.0
+
+    # Energy computed on LSB-cleared cover for stability
+    cover_energy = (cover.astype(np.int32) & ~1).astype(np.int16)
+    rms = _rms_per_frame(cover_energy.astype(np.float32), frame_size, hop_size)
+    if rms.size == 0:
+        return 0.0
+
+    thr = np.percentile(rms, 100.0 - top_energy_percent)
+
+    sample_frame = (np.arange(cover.size) // hop_size).astype(np.int64)
+    sample_frame = np.clip(sample_frame, 0, rms.size - 1)
+
+    mod_idx = np.where(modified_mask)[0]
+    if mod_idx.size == 0:
+        return 0.0
+
+    mod_frames = sample_frame[mod_idx]
+    mod_rms = rms[mod_frames]
+    return float(np.mean(mod_rms >= thr))
 
 
 def _derive_aes_key_bytes(passphrase: str, key_len: int = 16) -> bytes:
@@ -59,10 +112,7 @@ def main() -> int:
     ap.add_argument(
         "--message",
         type=str,
-        default=(
-            "LOW-ENERGY TEST: This message is embedded using keyed adaptive LSB (energy_percentile=0) "
-            "with AES encryption enabled."
-        ),
+        default="",
         help="Secret message to embed (UTF-8)",
     )
     ap.add_argument("--passphrase", type=str, default="thesis-demo-key", help="Passphrase used to derive AES/key bytes")
@@ -79,7 +129,13 @@ def main() -> int:
     out_dir = _new_fig_dir()
 
     energy_percentile = float(args.energy_percentile)
-    secret_message = args.message
+    if args.message.strip():
+        secret_message = args.message
+    else:
+        secret_message = (
+            f"THESIS TEST: This message is embedded using keyed adaptive LSB (energy_percentile={energy_percentile}) "
+            "with AES encryption enabled."
+        )
     passphrase = args.passphrase
     encrypt = not args.no_encrypt
     robust_repeat = int(args.robust_repeat)
@@ -140,6 +196,21 @@ def main() -> int:
     snr_db = compute_snr_db(cover_path, stego_path)
     ber_lsb = compute_lsb_ber(cover_path, stego_path)
 
+    # Localization metric: how concentrated modifications are in the highest-energy frames
+    cover_i16, _sr = _read_wav_mono_int16(cover_path)
+    stego_i16, _ = _read_wav_mono_int16(stego_path)
+    n = min(cover_i16.size, stego_i16.size)
+    cover_i16 = cover_i16[:n]
+    stego_i16 = stego_i16[:n]
+    modified_mask = (((cover_i16 ^ stego_i16) & 1) != 0)
+    frac_top = _frac_modifications_in_top_energy_frames(
+        cover_i16,
+        modified_mask,
+        frame_size=FRAME_SIZE,
+        hop_size=HOP_SIZE,
+        top_energy_percent=20.0,
+    )
+
     print("\n[Payload Accounting]")
     if encrypt:
         print(f"Ciphertext length (IV + CT): {len(aes_encrypt(plaintext, key_bytes))} bytes")
@@ -177,6 +248,7 @@ def main() -> int:
     print("\n[Performance Metrics]")
     print(f"SNR (cover vs stego): {snr_db:.2f} dB")
     print(f"LSB BER (cover vs stego): {ber_lsb:.6f}")
+    print(f"Localization: frac_mod_in_top_energy_frames (top 20%): {frac_top*100:.2f}%")
     if payload_ber is None:
         print("Payload BER: unavailable (extraction failed)")
     else:
