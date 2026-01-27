@@ -310,3 +310,75 @@ python -m src.thesis_low_energy_case --energy-percentile 40
 - Add synchronization to survive time shifts and resampling.
 - Move to transform-domain embedding (short-time Fourier transform/modified discrete cosine transform) with quantization index modulation or spread-spectrum for compression robustness.
 - Optionally add message authentication (for example, a keyed authenticator or authenticated encryption).
+
+---
+
+# Project Management and Cost Analysis
+
+## 8.1 Project Timeline
+The project was managed according to a structured timeline, with clear milestones to ensure steady progress:
+- **Weeks 1–2:** Literature review, requirements gathering, and initial project planning.
+- **Weeks 3–4:** Toolchain setup (Python environment, library installation), and initial design of the embedding/extraction pipeline.
+- **Weeks 5–7:** Core algorithm development, including adaptive LSB embedding, deterministic key-based ordering, and optional AES encryption.
+- **Weeks 8–9:** Implementation of evaluation metrics, visualization tools, and extensive testing with various audio samples and payloads.
+- **Week 10:** Parameter sweeps, robustness experiments (AWGN), and result analysis.
+- **Weeks 11–12:** Documentation, thesis writing, and preparation of figures and tables.
+A Gantt chart or milestone breakdown can be included in the appendix for visual reference.
+
+## 8.2 Budget Overview
+- **Hardware:** No new hardware was purchased; all simulations were run on a personal laptop/desktop.
+- **Software:** All software used was open-source and free (Python, NumPy, SciPy, Matplotlib, SoundFile, PyCryptodome).
+- **Testing:** No commercial datasets or paid cloud resources were required; all audio files were sourced from open repositories or generated.
+**Total direct project cost:** $0 (excluding personal computing equipment and internet access).
+
+## 8.3 Resource Allocation
+- **Labor:** The project was completed by a single student, with regular guidance from a faculty advisor.
+- **Materials:** No physical materials were needed; all resources were digital, including software, documentation, and datasets.
+- **Time:** The majority of time was allocated to algorithm development, testing, and documentation, with additional effort spent on result analysis and visualization.
+
+## 8.4 Risk Assessment and Mitigation Strategies
+- **Technical risks:** Potential for algorithmic errors, extraction failures, or misinterpretation of results. These were mitigated by incremental development, frequent testing, and use of reproducible scripts.
+- **Schedule risks:** Possible delays due to debugging or unforeseen technical challenges. Managed by maintaining a flexible timeline and regular progress reviews.
+- **Scope risks:** Risk of overextending into advanced topics (e.g., psychoacoustic modeling, compression robustness). Addressed by clearly defining the simulation scope and focusing on core objectives.
+- **Future risks:** Integration of the algorithm into a web-based demo may introduce new challenges (e.g., real-time processing, user interface design), which will be addressed in the next project phase.
+
+---
+
+# Challenges and Lessons Learned
+- **Technical challenges:** Ensuring deterministic extraction under all parameter settings, handling edge cases in audio file formats, and balancing imperceptibility with payload capacity.
+- **Non-technical challenges:** Managing time effectively, maintaining clear documentation, and presenting technical results in an accessible manner.
+- **Skills and knowledge gained:** Deepened understanding of digital audio processing, cryptography basics, Python scientific computing, and reproducible research practices. Gained experience in designing and evaluating secure information hiding systems.
+- **Recommendations for future work:** Integrate version control and automated testing from the outset, expand robustness evaluation to include lossy codecs and real-world audio, and plan for user interface and deployment considerations for the upcoming web-based demo.
+
+---
+
+# Conclusion and Future Work
+This project successfully designed and simulated an adaptive, keyed audio steganography system that achieves high imperceptibility and reliable extraction for short messages in uncompressed audio. Key achievements include:
+- Deterministic, key-dependent embedding with energy-based adaptivity
+- Optional AES encryption for payload confidentiality
+- Objective and visual evaluation of imperceptibility and robustness
+- Fully reproducible simulation framework with clear documentation
+
+**Future work** will focus on:
+- Developing a web-based demonstration interface to make the system accessible and interactive for users
+- Incorporating psychoacoustic masking models for improved transparency
+- Enhancing robustness to lossy compression, resampling, and synchronization errors
+- Adding error-correcting codes and integrity/authentication tags
+- Exploring real-world applications such as covert metadata embedding, digital watermarking, and secure audio messaging
+
+---
+
+# References
+- Python 3.10+ documentation
+- NumPy, SciPy, Matplotlib, SoundFile, PyCryptodome official documentation
+- Key academic papers on audio steganography and LSB techniques (to be cited as needed)
+- Open-source audio datasets and repositories used for testing
+
+---
+
+# Appendices
+- Selected code snippets (embedding/extraction functions, metric calculations)
+- Example simulation outputs (tables, plots, sweep results)
+- Additional test results or parameter sweeps
+- Gantt chart or milestone breakdown
+- Any supplementary documentation or datasheets
