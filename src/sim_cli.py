@@ -32,6 +32,8 @@ LAST_ENERGY_PERCENTILE = ADAPTIVITY_LEVELS["medium"]
 LAST_STEGO_PATH: str | None = None
 LAST_COVER_PATH: str | None = None
 LAST_FIG_DIR: str | None = None
+LAST_ML_DATASET_PATH: str | None = None
+LAST_ML_MODEL_PATH: str | None = None
 
 
 def _new_fig_dir() -> Path:
@@ -91,6 +93,28 @@ def _prompt_path(text: str, default_path: str | None = None) -> str:
     return _prompt(text)
 
 
+def _prompt_int_with_default(text: str, default_value: int) -> int:
+    while True:
+        val = _prompt(f"{text} [default: {default_value}]: ")
+        if val == "":
+            return default_value
+        try:
+            return int(val)
+        except ValueError:
+            print("Invalid integer. Try again.")
+
+
+def _prompt_float_with_default(text: str, default_value: float) -> float:
+    while True:
+        val = _prompt(f"{text} [default: {default_value}]: ")
+        if val == "":
+            return default_value
+        try:
+            return float(val)
+        except ValueError:
+            print("Invalid number. Try again.")
+
+
 def _prompt_existing_wav(text: str, default_path: str | None = None) -> str:
     while True:
         path_str = _prompt_path(text, default_path=default_path).strip().strip('"').strip("'")
@@ -127,6 +151,35 @@ def _print_header(title: str):
     print("\n" + "=" * 60)
     print(title)
     print("=" * 60)
+
+
+def _load_ml_tools():
+    """Import ML tools lazily so the base simulator can run without ML deps."""
+
+    try:
+        from .detectability_ml import (
+            EmbeddingStrategy,
+            choose_least_detectable_strategy,
+            generate_dataset,
+            load_dataset,
+            save_prediction_visualization,
+            save_model,
+            train_regression_model,
+        )
+        return {
+            "EmbeddingStrategy": EmbeddingStrategy,
+            "choose_least_detectable_strategy": choose_least_detectable_strategy,
+            "generate_dataset": generate_dataset,
+            "load_dataset": load_dataset,
+            "save_prediction_visualization": save_prediction_visualization,
+            "save_model": save_model,
+            "train_regression_model": train_regression_model,
+        }
+    except Exception as exc:
+        print("\n[ML Error] Optional ML tools are unavailable.")
+        print(f"Reason: {exc}")
+        print("Install required packages in your venv (for example: librosa, scikit-learn).")
+        return None
 
 
 def _embed_flow():
@@ -368,6 +421,207 @@ def _show_plots_flow():
     )
 
 
+def _payloads_from_text(payload_text: str, count: int, min_len: int, max_len: int) -> list[bytes]:
+    base = payload_text.encode("utf-8")
+    if count <= 1:
+        return [base[: max(min_len, 1)]]
+
+    payloads: list[bytes] = []
+    step = max(1, (max_len - min_len) // max(1, count - 1))
+    curr = min_len
+    lengths = []
+    for _ in range(count):
+        lengths.append(curr)
+        curr = min(curr + step, max_len)
+
+    for length in lengths:
+        reps = (length // max(1, len(base))) + 1
+        payloads.append((base * reps)[:length])
+    return payloads
+
+
+def _ml_build_dataset_flow():
+    global LAST_COVER_PATH, LAST_ML_DATASET_PATH
+    _print_header("ML: Build Detectability Dataset")
+
+    ml = _load_ml_tools()
+    if ml is None:
+        return
+
+    cover = _prompt_existing_wav(
+        "Enter cover audio file path",
+        default_path=LAST_COVER_PATH or str(Path("data") / "original" / "sample.wav"),
+    )
+    LAST_COVER_PATH = cover
+
+    output_dir = _prompt_path("Output folder for ML artifacts", default_path=str(Path("data") / "ml"))
+    payload_text = _prompt("Base payload text [default: secret-message]: ") or "secret-message"
+    payload_count = _prompt_int_with_default("Number of payload variants", 6)
+    payload_min_len = _prompt_int_with_default("Minimum payload length (bytes)", 16)
+    payload_max_len = _prompt_int_with_default("Maximum payload length (bytes)", 512)
+    energy_csv = _prompt("Energy percentiles comma list [default: 0,20,40]: ") or "0,20,40"
+    keys_csv = _prompt("Keys comma list [default: k1,k2,k3]: ") or "k1,k2,k3"
+    encrypt = _prompt_yes_no("Enable AES encryption for dataset generation?", default_yes=True)
+
+    payloads = _payloads_from_text(payload_text, payload_count, payload_min_len, payload_max_len)
+    energies = [float(x.strip()) for x in energy_csv.split(",") if x.strip()]
+    keys = [x.strip() for x in keys_csv.split(",") if x.strip()]
+
+    dataset_csv = ml["generate_dataset"](
+        cover_wav=cover,
+        output_dir=output_dir,
+        payloads=payloads,
+        energy_percentiles=energies,
+        key_texts=keys,
+        encrypt=encrypt,
+        frame_size=FRAME_SIZE,
+        hop_size=HOP_SIZE,
+    )
+    LAST_ML_DATASET_PATH = str(dataset_csv)
+
+    print("\n[ML Output]")
+    print(f"Dataset created: {dataset_csv}")
+
+
+def _ml_train_flow():
+    global LAST_ML_DATASET_PATH, LAST_ML_MODEL_PATH
+    _print_header("ML: Train Detectability Model")
+
+    ml = _load_ml_tools()
+    if ml is None:
+        return
+
+    dataset_default = LAST_ML_DATASET_PATH or str(Path("data") / "ml" / "detectability_dataset.csv")
+    dataset_csv = _prompt_path("Dataset CSV path", default_path=dataset_default)
+    model_default = str(Path("data") / "ml" / "detectability_model.pkl")
+    model_out = _prompt_path("Model output path", default_path=LAST_ML_MODEL_PATH or model_default)
+    model_type = (_prompt("Model type (random_forest / linear) [default: random_forest]: ") or "random_forest").strip().lower()
+    if model_type not in {"random_forest", "linear"}:
+        print("Invalid model type. Falling back to random_forest.")
+        model_type = "random_forest"
+    test_size = _prompt_float_with_default("Test split ratio", 0.2)
+    random_state = _prompt_int_with_default("Random seed", 42)
+
+    x, y, feature_names = ml["load_dataset"](dataset_csv)
+    result = ml["train_regression_model"](
+        x=x,
+        y=y,
+        model_type=model_type,
+        test_size=test_size,
+        random_state=random_state,
+    )
+    out_path = ml["save_model"](result["model"], feature_names, model_out)
+    plot_path = Path(model_out).with_name(Path(model_out).stem + "_predicted_vs_actual.png")
+    saved_plot = ml["save_prediction_visualization"](
+        y_true=result["y_test"],
+        y_pred=result["y_pred"],
+        output_path=str(plot_path),
+    )
+    LAST_ML_MODEL_PATH = str(out_path)
+
+    y_test = result["y_test"]
+    y_pred = result["y_pred"]
+    preview_n = min(10, len(y_test))
+
+    print("\n[ML Output]")
+    print(f"Model saved: {out_path}")
+    print(f"Prediction plot saved: {saved_plot}")
+    print(f"MAE: {result['mae']:.6f}")
+    print("Predicted vs Actual (first rows):")
+    for i in range(preview_n):
+        print(f"  idx={i:02d}  predicted={float(y_pred[i]):.4f}  actual={float(y_test[i]):.4f}")
+
+
+def _ml_choose_strategy_flow():
+    global LAST_COVER_PATH, LAST_ML_MODEL_PATH
+    _print_header("ML: Choose Least Detectable Strategy")
+
+    ml = _load_ml_tools()
+    if ml is None:
+        return
+
+    cover = _prompt_existing_wav(
+        "Enter cover audio file path",
+        default_path=LAST_COVER_PATH or str(Path("data") / "original" / "sample.wav"),
+    )
+    LAST_COVER_PATH = cover
+
+    model_default = LAST_ML_MODEL_PATH or str(Path("data") / "ml" / "detectability_model.pkl")
+    model_path = _prompt_path("Model path", default_path=model_default)
+    output_dir = _prompt_path("Candidate output folder", default_path=str(Path("data") / "ml" / "candidates"))
+    payload_text = _prompt("Payload text to embed: ")
+    energy_csv = _prompt("Energy percentiles comma list [default: 0,20,40]: ") or "0,20,40"
+    keys_csv = _prompt("Keys comma list [default: k1,k2,k3]: ") or "k1,k2,k3"
+    encrypt = _prompt_yes_no("Enable AES encryption for candidate generation?", default_yes=True)
+
+    energies = [float(x.strip()) for x in energy_csv.split(",") if x.strip()]
+    keys = [x.strip() for x in keys_csv.split(",") if x.strip()]
+
+    EmbeddingStrategy = ml["EmbeddingStrategy"]
+    strategies = []
+    for key_text in keys:
+        for energy in energies:
+            strategies.append(
+                EmbeddingStrategy(
+                    key_text=key_text,
+                    energy_percentile=energy,
+                    frame_size=FRAME_SIZE,
+                    hop_size=HOP_SIZE,
+                    encrypt=encrypt,
+                )
+            )
+
+    result = ml["choose_least_detectable_strategy"](
+        cover_wav=cover,
+        payload=payload_text.encode("utf-8"),
+        model_path=model_path,
+        output_dir=output_dir,
+        strategies=strategies,
+    )
+
+    best = result["best"]
+    best_strategy = best["strategy"]
+
+    print("\n[ML Output]")
+    print("Best strategy found:")
+    print(f"  stego_path: {best['stego_path']}")
+    print(f"  predicted_detectability: {float(best['predicted_detectability']):.4f}")
+    print(f"  key_text: {best_strategy.key_text}")
+    print(f"  energy_percentile: {best_strategy.energy_percentile}")
+
+    print("All candidates:")
+    for item in result["all_candidates"]:
+        st = item["strategy"]
+        print(
+            "  "
+            f"path={item['stego_path']}  "
+            f"pred={float(item['predicted_detectability']):.4f}  "
+            f"key={st.key_text}  "
+            f"energy={st.energy_percentile}"
+        )
+
+
+def _ml_flow():
+    while True:
+        _print_header("ML Detectability Tools")
+        print("1) Build dataset")
+        print("2) Train regression model")
+        print("3) Choose least detectable strategy")
+        print("4) Back to main menu")
+        choice = _prompt("Select an option (1/2/3/4): ").strip()
+
+        if choice == "1":
+            _ml_build_dataset_flow()
+        elif choice == "2":
+            _ml_train_flow()
+        elif choice == "3":
+            _ml_choose_strategy_flow()
+        elif choice == "4":
+            break
+        else:
+            print("Invalid selection. Please enter 1, 2, 3, or 4.")
+
+
 def main():
     while True:
         _print_header("Adaptive & Secure Audio Steganography Simulation")
@@ -375,13 +629,14 @@ def main():
         print("2) Extract secret message")
         print("3) Show comparison plots")
         print("4) Exit")
+        print("5) ML detectability commands")
         print("Note: For correct extraction, match energy level used during embedding.")
-        raw_choice = _prompt("Select an option (1/2/3/4): ")
+        raw_choice = _prompt("Select an option (1/2/3/4/5): ")
         choice = raw_choice.strip()
         print(f"[Debug] Menu selection received: '{choice}'")
 
         if choice == "":
-            print("Invalid selection. Please enter 1, 2, 3, or 4.")
+            print("Invalid selection. Please enter 1, 2, 3, 4, or 5.")
             continue
 
         if choice == "1":
@@ -404,8 +659,15 @@ def main():
         elif choice == "4":
             print("Exiting simulation.")
             break
+        elif choice == "5":
+            print("[Debug] Entering ML tools mode...")
+            try:
+                _ml_flow()
+            except Exception as exc:
+                print(f"[Error] ML workflow failed: {exc}")
+                raise
         else:
-            print("Invalid selection. Please enter 1, 2, 3, or 4.")
+            print("Invalid selection. Please enter 1, 2, 3, 4, or 5.")
 
 
 if __name__ == "__main__":

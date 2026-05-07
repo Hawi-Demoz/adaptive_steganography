@@ -190,6 +190,50 @@ plaintext = extract_adaptive_keyed("stego.wav", passphrase)
 - `metrics.compute_snr_db(cover, stego)` returns the signal-to-noise ratio in decibels.
 - `metrics.compute_ber(a, b)` returns a bit error rate between two bit arrays.
 
+## Optional ML Detectability Module
+
+This repository now includes an optional machine learning extension that predicts
+how detectable a stego sample is.
+
+What it does:
+- Extracts audio features with `librosa`:
+	- MFCC (13 coefficients, mean values)
+	- Spectral centroid (mean)
+	- Zero crossing rate (mean)
+	- RMS energy (mean)
+- Computes a detectability target from mean squared error (MSE) between
+	original and stego audio.
+- Normalizes the target to `[0, 1]` for regression.
+- Trains a regression model (`RandomForestRegressor` or `LinearRegression`).
+- Reports mean absolute error and predicted-vs-actual values.
+- Optionally tries multiple embedding strategies and picks the least detectable.
+
+Main files:
+- `src/detectability_ml.py`: reusable functions and integration helpers.
+- `src/ml_detectability_cli.py`: optional standalone CLI.
+
+### 1) Build dataset
+
+```powershell
+python -m src.ml_detectability_cli build-dataset --cover data/original/file_example_WAV_1MG.wav --output-dir data/ml --payload-text "hello" --payload-count 6 --payload-min-len 16 --payload-max-len 512 --energy-percentiles 0,20,40 --keys k1,k2,k3
+```
+
+### 2) Train model
+
+```powershell
+python -m src.ml_detectability_cli train --dataset-csv data/ml/detectability_dataset.csv --model-out data/ml/detectability_model.pkl --model-type random_forest
+```
+
+### 3) Choose least detectable strategy
+
+```powershell
+python -m src.ml_detectability_cli choose-strategy --cover data/original/file_example_WAV_1MG.wav --model-path data/ml/detectability_model.pkl --output-dir data/ml/candidates --payload-text "top secret" --energy-percentiles 0,20,40 --keys keyA,keyB,keyC
+```
+
+Design note:
+- This extension is additive and optional. Existing embedding/extraction logic,
+	outputs, and workflows remain unchanged.
+
 ## Development
 Run the demo test:
 

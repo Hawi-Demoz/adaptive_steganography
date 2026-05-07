@@ -85,6 +85,32 @@ def cmd_extract(args: argparse.Namespace):
         print(f"  BER: {ber_after:.6f}")
 
 
+def cmd_ml(args: argparse.Namespace):
+    """Delegate ML tasks to the optional ML CLI module.
+
+    Usage example:
+      python -m src.cli ml build-dataset --cover ... --output-dir ...
+    """
+
+    from .ml_detectability_cli import build_parser as build_ml_parser
+
+    ml_parser = build_ml_parser()
+    ml_args = list(args.ml_args or [])
+
+    # Allow both forms:
+    #   python -m src.cli ml build-dataset ...
+    #   python -m src.cli ml -- build-dataset ...
+    if ml_args and ml_args[0] == '--':
+        ml_args = ml_args[1:]
+
+    if not ml_args:
+        ml_parser.print_help()
+        return
+
+    ml_ns = ml_parser.parse_args(ml_args)
+    ml_ns.func(ml_ns)
+
+
 def main():
     p = argparse.ArgumentParser(description="Adaptive & Keyed Audio Steganography")
     sub = p.add_subparsers(dest='cmd', required=True)
@@ -120,6 +146,10 @@ def main():
     outg.add_argument('--out-text', action='store_true', help='Print recovered text to stdout')
     outg.add_argument('--out-file', type=Path, help='Write recovered bytes to file')
     px.set_defaults(func=cmd_extract)
+
+    pm = sub.add_parser('ml', help='Run optional ML detectability commands')
+    pm.add_argument('ml_args', nargs=argparse.REMAINDER, help='Arguments forwarded to the ML CLI')
+    pm.set_defaults(func=cmd_ml)
 
     args = p.parse_args()
     args.func(args)
