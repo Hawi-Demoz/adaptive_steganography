@@ -1,12 +1,84 @@
 @import "tailwindcss";
 
 @theme {
-  --color-dark-bg: #0F172A;
-  --color-dark-card: #1E293B;
-  --color-dark-border: #334155;
+  --font-sans: 'Inter', sans-serif;
+  --font-display: 'Space Grotesk', sans-serif;
+
+  --color-theme-base: var(--theme-base);
+  --color-theme-card: var(--theme-card);
+  --color-theme-border: var(--theme-border);
+  --color-theme-text-main: var(--theme-text-main);
+  --color-theme-text-muted: var(--theme-text-muted);
+  --color-theme-accent: var(--theme-accent);
+  --color-theme-accent-hover: var(--theme-accent-hover);
+  --color-theme-glass: var(--theme-glass);
+}
+
+@layer base {
+  :root {
+    /* Light Theme (Warm Paper/Research Notebook) */
+    --theme-base: #F8F7F3; /* Warm vanilla background */
+    --theme-card: #FFFFFF; /* Pure paper */
+    --theme-border: #E8E5DD; 
+    --theme-text-main: #2A2A2A; 
+    --theme-text-muted: #737373;
+    --theme-accent: #6C7A89; /* Muted slate/steel */
+    --theme-accent-hover: #546473;
+    --theme-glass: rgba(255, 255, 255, 0.7);
+  }
+
+  .dark {
+    /* Dark Theme (Cinematic Lab/Graphite) */
+    --theme-base: #0A0A0A; /* Deep graphite */
+    --theme-card: #151515; /* Charcoal card */
+    --theme-border: #262626;
+    --theme-text-main: #F0F0F0;
+    --theme-text-muted: #888888;
+    --theme-accent: #A8B8D0; /* Muted silver/metal */
+    --theme-accent-hover: #C5D0E6;
+    --theme-glass: rgba(21, 21, 21, 0.6);
+  }
 }
 
 body {
-  background-color: var(--color-dark-bg);
-  color: #f3f4f6; /* gray-100 */
+  background-color: var(--color-theme-base);
+  color: var(--color-theme-text-main);
+  font-family: var(--font-sans);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* Subtle cinematic background blurs */
+.bg-cinematic {
+  position: relative;
+  overflow: hidden;
+}
+
+.bg-cinematic::before {
+  content: '';
+  position: absolute;
+  top: -20%;
+  left: -10%;
+  width: 50vw;
+  height: 50vh;
+  background: radial-gradient(circle, var(--theme-border) 0%, transparent 60%);
+  filter: blur(80px);
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.glass-panel {
+  background-color: var(--color-theme-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-theme-border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+}
+
+.dark .glass-panel {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }

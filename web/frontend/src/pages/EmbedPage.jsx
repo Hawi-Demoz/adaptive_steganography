@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { UploadCloud, Settings, Shield, FileAudio } from 'lucide-react';
+import { UploadCloud, Settings, Shield, FileAudio, KeyRound, Type, SlidersHorizontal, ArrowRight } from 'lucide-react';
 
 export default function EmbedPage() {
   const [file, setFile] = useState(null);
@@ -15,7 +15,7 @@ export default function EmbedPage() {
   };
 
   const handleEmbed = async () => {
-    if (!file || !message || !password) return alert("Missing fields!");
+    if (!file || !message || !password) return alert("Missing fields criteria.");
     
     setIsLoading(true);
     const formData = new FormData();
@@ -27,10 +27,9 @@ export default function EmbedPage() {
 
     try {
       const response = await axios.post('http://localhost:5000/api/embed', formData, {
-        responseType: 'blob', // Important for file downloads
+        responseType: 'blob',
       });
       
-      // Create a URL and trigger download of the stego wav
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -40,89 +39,133 @@ export default function EmbedPage() {
       
     } catch (error) {
       console.error(error);
-      alert("Error generating stego file.");
+      alert("Error generating payload carrier.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <header className="mb-8">
-        <h2 className="text-3xl font-bold">Embed Data</h2>
-        <p className="text-gray-400 mt-2">Adaptively hide a secret message within a WAV cover signal.</p>
+    <div className="space-y-8 animate-in fade-in duration-700">
+      <header className="mb-10">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-theme-border bg-theme-border/20 text-xs font-semibold text-theme-accent mb-4 uppercase tracking-wider">
+          <Settings size={12} /> Adaptive Steganography
+        </div>
+        <h2 className="text-4xl font-bold tracking-tight text-theme-text-main mb-3">Payload Ingestion</h2>
+        <p className="text-theme-text-muted max-w-2xl leading-relaxed">
+          Embed confidential telemetry and secure messaging into high-energy acoustic carriers using deterministic keyed placement.
+        </p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Column: Data Input */}
-        <div className="space-y-6">
-          <div className="bg-dark-card border border-dark-border p-6 rounded-xl">
-            <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-              <UploadCloud size={20} className="text-blue-400"/> Cover Audio
-            </h3>
-            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-dark-border hover:border-blue-500 rounded-lg cursor-pointer bg-dark-bg/50 transition-colors">
+        <div className="lg:col-span-7 space-y-6">
+          <SectionCard title="Acoustic Carrier" icon={<FileAudio className="text-theme-accent" size={18} />}>
+            <label className="flex flex-col items-center justify-center w-full h-36 border border-dashed border-theme-border hover:border-theme-accent rounded-xl cursor-pointer bg-theme-base/50 transition-all hover:bg-theme-border/10 group shadow-inner">
               <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                <FileAudio size={28} className="text-gray-400 mb-2" />
-                <p className="text-sm text-gray-400">
-                  {file ? <span className="text-green-400 font-medium">{file.name}</span> : 'Click or drag WAV file here'}
+                <UploadCloud size={32} strokeWidth={1.5} className="text-theme-text-muted mb-3 group-hover:text-theme-accent transition-colors" />
+                <p className="text-sm font-medium text-theme-text-main">
+                  {file ? <span className="text-theme-text-main">{file.name}</span> : 'Select or drop WAV container'}
                 </p>
+                <p className="text-xs text-theme-text-muted mt-1">16-bit PCM WAV required</p>
               </div>
               <input type="file" className="hidden" accept=".wav" onChange={handleFileChange} />
             </label>
-          </div>
+          </SectionCard>
 
-          <div className="bg-dark-card border border-dark-border p-6 rounded-xl space-y-4">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Shield size={20} className="text-blue-400"/> Secret Payload
-            </h3>
-            <textarea 
-              className="w-full bg-dark-bg border border-dark-border rounded-lg p-3 text-sm focus:outline-none focus:border-blue-500 min-h-[100px]"
-              placeholder="Enter secret message text..."
-              value={message} onChange={(e) => setMessage(e.target.value)}
-            />
-            <input 
-              type="password" 
-              className="w-full bg-dark-bg border border-dark-border rounded-lg p-3 text-sm focus:outline-none focus:border-blue-500"
-              placeholder="Encryption/Ordering Key"
-              value={password} onChange={(e) => setPassword(e.target.value)}
-            />
-            <label className="flex items-center gap-2 text-sm text-gray-300">
-              <input type="checkbox" checked={encrypt} onChange={(e)=>setEncrypt(e.target.checked)} className="rounded bg-dark-bg border-dark-border text-blue-500 focus:ring-blue-500"/>
-              Enable AES-CBC Encryption
-            </label>
-          </div>
+          <SectionCard title="Secure Payload" icon={<Shield className="text-theme-accent" size={18} />}>
+            <div className="space-y-4">
+              <div className="relative">
+                <Type className="absolute left-3 top-3.5 text-theme-text-muted" size={16} />
+                <textarea 
+                  className="w-full bg-theme-base border border-theme-border rounded-xl pl-10 p-3 text-sm text-theme-text-main placeholder:text-theme-text-muted focus:outline-none focus:ring-1 focus:ring-theme-accent focus:border-theme-accent min-h-[120px] transition-all resize-none shadow-inner"
+                  placeholder="Enter ciphertext or plaintext payload..."
+                  value={message} onChange={(e) => setMessage(e.target.value)}
+                />
+              </div>
+              
+              <div className="relative">
+                <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 text-theme-text-muted" size={16} />
+                <input 
+                  type="password" 
+                  className="w-full bg-theme-base border border-theme-border rounded-xl pl-10 p-3 text-sm text-theme-text-main placeholder:text-theme-text-muted focus:outline-none focus:ring-1 focus:ring-theme-accent focus:border-theme-accent transition-all shadow-inner"
+                  placeholder="Cryptographic Seed / Key"
+                  value={password} onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            </div>
+          </SectionCard>
         </div>
 
         {/* Right Column: Parameters and Actions */}
-        <div className="bg-dark-card border border-dark-border p-6 rounded-xl flex flex-col">
-          <h3 className="text-lg font-semibold flex items-center gap-2 mb-6">
-            <Settings size={20} className="text-blue-400"/> Adaptive Parameters
-          </h3>
-          
-          <div className="space-y-6 flex-1">
-            <div>
-              <div className="flex justify-between text-sm mb-2">
-                <label className="text-gray-300">Energy Percentile</label>
-                <span className="text-blue-400 font-mono">{energyPercentile}%</span>
+        <div className="lg:col-span-5 space-y-6 flex flex-col">
+          <SectionCard title="Embedding Morphology" icon={<SlidersHorizontal className="text-theme-accent" size={18} />} className="flex-1">
+            <div className="space-y-6">
+              
+              {/* Toggle Switch */}
+              <div className="flex items-center justify-between p-3 rounded-lg border border-theme-border bg-theme-base/30">
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-theme-text-main">AES-256 Encryption</span>
+                  <span className="text-xs text-theme-text-muted">Encrypt payload before injection</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" className="sr-only peer" checked={encrypt} onChange={(e) => setEncrypt(e.target.checked)} />
+                  <div className="w-9 h-5 bg-theme-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-theme-accent"></div>
+                </label>
               </div>
-              <input 
-                type="range" min="0" max="100" 
-                value={energyPercentile} onChange={(e)=>setEnergyPercentile(e.target.value)}
-                className="w-full accent-blue-500"
-              />
-              <p className="text-xs text-gray-500 mt-2">Higher values restrict embedding to only the loudest frames (better imperceptibility, lower capacity).</p>
-            </div>
-          </div>
 
-          <button 
-            onClick={handleEmbed}
-            disabled={isLoading}
-            className="w-full py-3 mt-6 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
-          >
-            {isLoading ? 'Processing Pipeline...' : 'Generate Stego Audio'}
-          </button>
+              {/* Slider */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-end">
+                  <div className="flex flex-col">
+                    <label className="text-sm font-medium text-theme-text-main">Acoustic Masking Threshold</label>
+                    <span className="text-xs text-theme-text-muted">RMS Energy Percentile</span>
+                  </div>
+                  <span className="text-sm font-mono text-theme-accent bg-theme-border/30 px-2 py-0.5 rounded">{energyPercentile}%</span>
+                </div>
+                
+                <input 
+                  type="range" min="0" max="100" 
+                  value={energyPercentile} onChange={(e)=>setEnergyPercentile(e.target.value)}
+                  className="w-full h-1.5 bg-theme-border rounded-lg appearance-none cursor-pointer accent-theme-accent"
+                />
+                
+                <div className="flex justify-between text-[10px] uppercase tracking-wider text-theme-text-muted font-semibold">
+                  <span>Capacity</span>
+                  <span>Imperceptibility</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-8">
+              <button 
+                onClick={handleEmbed}
+                disabled={isLoading}
+                className="w-full py-3.5 bg-theme-text-main text-theme-base hover:opacity-90 disabled:opacity-50 rounded-xl font-medium transition-all shadow-md flex items-center justify-center gap-2 group"
+              >
+                {isLoading ? (
+                  <span className="animate-pulse flex items-center gap-2">Initiating Sequence...</span>
+                ) : (
+                  <>
+                    Initialize Embedding <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
+              </button>
+            </div>
+          </SectionCard>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SectionCard({ title, icon, children, className = '' }) {
+  return (
+    <div className={`glass-panel rounded-2xl p-6 ${className}`}>
+      <h3 className="text-sm font-semibold flex items-center gap-2 mb-5 uppercase tracking-wider text-theme-text-muted">
+        {icon} {title}
+      </h3>
+      {children}
     </div>
   );
 }
