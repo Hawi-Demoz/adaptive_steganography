@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import EmbedPage from './pages/EmbedPage';
+import ExtractPage from './pages/ExtractPage';
 import { Activity, Lock, Unlock, BarChart, Moon, Sun } from 'lucide-react';
 
 function App() {
@@ -49,7 +50,7 @@ function App() {
           <div className="max-w-5xl mx-auto">
             <Routes>
               <Route path="/" element={<EmbedPage />} />
-              {/* <Route path="/extract" element={<ExtractPage />} /> */}
+              <Route path="/extract" element={<ExtractPage />} />
               {/* <Route path="/visuals" element={<VisualsPage />} /> */}
               {/* <Route path="/ml-detect" element={<MLPage />} /> */}
             </Routes>
