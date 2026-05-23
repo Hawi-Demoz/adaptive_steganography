@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { useStego } from '../context/StegoContext';
 import { UploadCloud, Settings, Shield, FileAudio, KeyRound, Type, SlidersHorizontal, ArrowRight } from 'lucide-react';
 
 export default function EmbedPage() {
+  const { addGeneratedFile } = useStego();
   const [file, setFile] = useState(null);
   const [message, setMessage] = useState('');
   const [password, setPassword] = useState('');
   const [encrypt, setEncrypt] = useState(true);
   const [energyPercentile, setEnergyPercentile] = useState(20);
+  const [robustRepeat, setRobustRepeat] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleFileChange = (e) => {
@@ -24,18 +27,28 @@ export default function EmbedPage() {
     formData.append('password', password);
     formData.append('encrypt', encrypt);
     formData.append('energy_percentile', energyPercentile);
+    formData.append('robust_repeat', robustRepeat);
 
     try {
-      const response = await axios.post('http://localhost:5000/api/embed', formData, {
-        responseType: 'blob',
-      });
+      const response = await axios.post('http://localhost:5000/api/embed', formData);
       
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const stegoData = response.data;
+      
+      // Save globally
+      addGeneratedFile({
+        ...stegoData, // stego_filename, cover_filename, original_name, timestamp
+        type: 'generated',
+        metrics: { energyPercentile, robustRepeat, encrypt }
+      });
+
+      // Optionally auto-download immediately (or allow them to grab it from extracting later)
+      const downloadUrl = `http://localhost:5000/api/download/${stegoData.stego_filename}`;
       const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'stego_output.wav');
+      link.href = downloadUrl;
+      link.setAttribute('download', `stego_${file.name}`);
       document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
       
     } catch (error) {
       console.error(error);
@@ -112,6 +125,23 @@ export default function EmbedPage() {
                   <input type="checkbox" className="sr-only peer" checked={encrypt} onChange={(e) => setEncrypt(e.target.checked)} />
                   <div className="w-9 h-5 bg-theme-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-theme-accent"></div>
                 </label>
+              </div>
+
+                <div className="flex items-center justify-between p-3 rounded-lg border border-theme-border bg-theme-base/30">
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-theme-text-main">Robust Repeat Factor</span>
+                  <span className="text-xs text-theme-text-muted">Redundant encoding depth</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="number" 
+                    min="1" 
+                    max="10" 
+                    value={robustRepeat} 
+                    onChange={(e) => setRobustRepeat(parseInt(e.target.value) || 1)}
+                    className="w-16 bg-theme-base border border-theme-border rounded-lg p-1.5 text-center text-sm text-theme-text-main focus:outline-none focus:ring-1 focus:ring-theme-accent focus:border-theme-accent transition-all shadow-inner"
+                  />
+                </div>
               </div>
 
               {/* Slider */}

@@ -40,6 +40,24 @@
   }
 }
 
+.bg-cinematic {
+  background-image: 
+    linear-gradient(var(--theme-border) 0.5px, transparent 0.5px),
+    linear-gradient(90deg, var(--theme-border) 0.5px, transparent 0.5px);
+  background-size: 80px 80px;
+  background-attachment: fixed;
+  position: relative;
+}
+
+.bg-cinematic::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, transparent, var(--theme-base) 90%);
+  pointer-events: none;
+  z-index: -1;
+}
+
 body {
   background-color: var(--color-theme-base);
   color: var(--color-theme-text-main);

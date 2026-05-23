@@ -2,6 +2,9 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react
 import { useState, useEffect } from 'react';
 import EmbedPage from './pages/EmbedPage';
 import ExtractPage from './pages/ExtractPage';
+import MLPage from './pages/MLPage';
+import VisualsPage from './pages/VisualsPage';
+import { StegoProvider } from './context/StegoContext';
 import { Activity, Lock, Unlock, BarChart, Moon, Sun } from 'lucide-react';
 
 function App() {
@@ -15,10 +18,11 @@ function App() {
   const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
 
   return (
-    <Router>
-      <div className="min-h-screen flex bg-theme-base text-theme-text-main transition-colors duration-500 bg-cinematic">
-        {/* Sidebar Navigation */}
-        <aside className="w-64 glass-panel border-r border-theme-border flex flex-col z-10 relative">
+    <StegoProvider>
+      <Router>
+        <div className="min-h-screen flex bg-theme-base text-theme-text-main transition-colors duration-500 bg-cinematic">
+          {/* Sidebar Navigation */}
+          <aside className="w-64 glass-panel border-r border-theme-border flex flex-col z-10 relative">
           <div className="p-6">
             <h1 className="text-xl font-bold tracking-tight text-theme-text-main flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-theme-accent"></span>
@@ -51,13 +55,14 @@ function App() {
             <Routes>
               <Route path="/" element={<EmbedPage />} />
               <Route path="/extract" element={<ExtractPage />} />
-              {/* <Route path="/visuals" element={<VisualsPage />} /> */}
-              {/* <Route path="/ml-detect" element={<MLPage />} /> */}
+              <Route path="/visuals" element={<VisualsPage />} />
+              <Route path="/ml-detect" element={<MLPage />} />
             </Routes>
           </div>
         </main>
       </div>
-    </Router>
+      </Router>
+    </StegoProvider>
   );
 }
 

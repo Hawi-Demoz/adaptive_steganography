@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react';
 import axios from 'axios';
+import { useStego } from '../context/StegoContext';
 import { 
   UploadCloud, 
-  FileAudio, 
+  FileAudio,  
   KeyRound, 
   Settings, 
   Cpu, 
@@ -17,10 +18,12 @@ import {
 } from 'lucide-react';
 
 export default function ExtractPage() {
+  const { generatedFiles } = useStego();
+  const [selectedFileMode, setSelectedFileMode] = useState('upload'); // 'upload' or 'generated'
+  const [selectedGeneratedFile, setSelectedGeneratedFile] = useState('');
+  
   const [file, setFile] = useState(null);
   const [key, setKey] = useState('');
-  const [paramRecovery, setParamRecovery] = useState(false);
-  const [extractMode, setExtractMode] = useState('Standard');
   const [status, setStatus] = useState('IDLE'); // IDLE, EXTRACTING, VERIFIED, INVALID KEY, CORRUPTED PAYLOAD
   const [extractedData, setExtractedData] = useState(null);
   
@@ -35,12 +38,16 @@ export default function ExtractPage() {
   };
 
   const handleExtract = async () => {
-    if (!file || !key) return;
+    if ((selectedFileMode === 'upload' && !file) || (selectedFileMode === 'generated' && !selectedGeneratedFile) || !key) return;
     
     setStatus('EXTRACTING');
     
     const formData = new FormData();
-    formData.append('stego', file);
+    if (selectedFileMode === 'upload') {
+      formData.append('stego', file);
+    } else {
+      formData.append('stego_filename', selectedGeneratedFile);
+    }
     formData.append('password', key);
 
     try {
@@ -50,15 +57,14 @@ export default function ExtractPage() {
         setStatus('VERIFIED');
         setExtractedData({
           text: response.data.message,
-          ber: '0.00%',
-          metadata: 'AES-CBC / PKCS#7 / Valid Padding'
+          metadata: 'Extraction completed'
         });
       }
     } catch (error) {
       console.error(error);
       const errorMsg = error.response?.data?.error || "Extraction failed";
       
-      if (errorMsg.toLowerCase().includes('password') || errorMsg.toLowerCase().includes('key')) {
+      if (errorMsg.toLowerCase().includes('password') || errorMsg.toLowerCase().includes('key') || errorMsg.toLowerCase().includes('mac')) {
         setStatus('INVALID KEY');
       } else {
         setStatus('CORRUPTED PAYLOAD');
@@ -66,7 +72,6 @@ export default function ExtractPage() {
       
       setExtractedData({
         text: errorMsg,
-        ber: 'High / Sync Loss',
         metadata: 'Fatal Decoding Error'
       });
     }
@@ -104,26 +109,62 @@ export default function ExtractPage() {
         {/* LEFT: Upload Area */}
         <div className="lg:col-span-12 xl:col-span-7 space-y-6">
           <SectionCard title="Steganographic Carrier" icon={<FileAudio className="text-theme-accent" size={18} />}>
-            <div 
-              className={`flex flex-col items-center justify-center w-full min-h-[220px] border border-dashed rounded-xl cursor-pointer bg-theme-base/50 transition-all group shadow-inner
-                ${file ? 'border-theme-accent' : 'border-theme-border hover:border-theme-accent hover:bg-theme-border/10'}`}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
-              }}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input type="file" ref={fileInputRef} className="hidden" accept=".wav" onChange={handleFileChange} />
-              
-              <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                <UploadCloud size={32} strokeWidth={1.5} className={`mb-3 transition-colors ${file ? 'text-theme-accent' : 'text-theme-text-muted group-hover:text-theme-accent'}`} />
-                <p className="text-sm font-medium text-theme-text-main">
-                  {file ? file.name : 'Select or drop stego WAV'}
-                </p>
-                <p className="text-xs text-theme-text-muted mt-1">16-bit PCM WAV required</p>
-              </div>
+            
+            <div className="flex gap-4 mb-4 border-b border-theme-border pb-2">
+              <button 
+                onClick={() => setSelectedFileMode('generated')}
+                className={`text-sm py-1 border-b-2 transition-colors ${selectedFileMode === 'generated' ? 'border-theme-accent text-theme-accent' : 'border-transparent text-theme-text-muted'}`}>
+                Session Files
+              </button>
+              <button 
+                onClick={() => setSelectedFileMode('upload')}
+                className={`text-sm py-1 border-b-2 transition-colors ${selectedFileMode === 'upload' ? 'border-theme-accent text-theme-accent' : 'border-transparent text-theme-text-muted'}`}>
+                Manual Upload
+              </button>
             </div>
+
+            {selectedFileMode === 'generated' ? (
+               <div className="flex flex-col space-y-3 min-h-[140px]">
+                 {generatedFiles.length === 0 ? (
+                   <div className="text-sm text-theme-text-muted italic py-8 text-center flex-1">No session files generated yet.</div>
+                 ) : (
+                   <select 
+                     value={selectedGeneratedFile}
+                     onChange={(e) => setSelectedGeneratedFile(e.target.value)}
+                     className="w-full bg-theme-base border border-theme-border rounded-xl p-3 text-sm text-theme-text-main focus:outline-none focus:ring-1 focus:ring-theme-accent"
+                   >
+                     <option value="" disabled>Select generated payload...</option>
+                     {generatedFiles.map((gf, idx) => (
+                       <option key={idx} value={gf.stego_filename}>
+                         {gf.stego_filename} (Cover: {gf.original_name})
+                       </option>
+                     ))}
+                   </select>
+                 )}
+               </div>
+            ) : (
+               <div 
+                 className={`flex flex-col items-center justify-center w-full min-h-[180px] border border-dashed rounded-xl cursor-pointer bg-theme-base/50 transition-all group shadow-inner
+                   ${file ? 'border-theme-accent' : 'border-theme-border hover:border-theme-accent hover:bg-theme-border/10'}`}
+                 onDragOver={(e) => e.preventDefault()}
+                 onDrop={(e) => {
+                   e.preventDefault();
+                   if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+                 }}
+                 onClick={() => fileInputRef.current?.click()}
+               >
+                 <input type="file" ref={fileInputRef} className="hidden" accept=".wav" onChange={handleFileChange} />
+                 
+                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                   <UploadCloud size={32} strokeWidth={1.5} className={`mb-3 transition-colors ${file ? 'text-theme-accent' : 'text-theme-text-muted group-hover:text-theme-accent'}`} />
+                   <p className="text-sm font-medium text-theme-text-main">
+                     {file ? file.name : 'Select or drop stego WAV'}
+                   </p>
+                   <p className="text-xs text-theme-text-muted mt-1">16-bit PCM WAV required</p>
+                 </div>
+               </div>
+            )}
+
           </SectionCard>
         </div>
 
@@ -136,47 +177,14 @@ export default function ExtractPage() {
                   <KeyRound className="w-3 h-3" />
                   Cryptographic Seed / Key
                 </label>
-                <input 
-                  type="password" 
-                  value={key}
-                  onChange={(e) => setKey(e.target.value)}
-                  placeholder="Enter decryption key..."
-                  className="w-full bg-theme-base border border-theme-border rounded-xl p-3 text-sm text-theme-text-main placeholder:text-theme-text-muted focus:outline-none focus:ring-1 focus:ring-theme-accent focus:border-theme-accent transition-all shadow-inner"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase tracking-[0.2em] text-theme-text-muted font-semibold flex items-center gap-2">
-                  <Activity className="w-3 h-3" />
-                  Extraction Mode
-                </label>
-                <select 
-                  value={extractMode}
-                  onChange={(e) => setExtractMode(e.target.value)}
-                  className="w-full bg-theme-base border border-theme-border rounded-xl p-3 text-sm text-theme-text-main focus:outline-none focus:ring-1 focus:ring-theme-accent transition-all shadow-inner appearance-none cursor-pointer"
-                >
-                  <option>Standard (Synchronous LSB)</option>
-                  <option>Deep Scan (Robust Decoding)</option>
-                  <option>Headerless Recovery</option>
-                </select>
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded-lg border border-theme-border bg-theme-base/30">
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-theme-text-main">Parameter Recovery</span>
-                  <span className="text-xs text-theme-text-muted">Auto-resolve frame config</span>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" checked={paramRecovery} onChange={(e) => setParamRecovery(e.target.checked)} />
-                  <div className="w-9 h-5 bg-theme-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-theme-accent"></div>
-                </label>
+                <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="Enter decryption key..." className="w-full bg-theme-base border border-theme-border rounded-xl p-3 text-sm text-theme-text-main placeholder:text-theme-text-muted focus:outline-none focus:ring-1 focus:ring-theme-accent focus:border-theme-accent transition-all shadow-inner" />
               </div>
             </div>
 
             <div className="mt-10">
               <button 
                 onClick={handleExtract}
-                disabled={!file || status === 'EXTRACTING'}
+                disabled={(selectedFileMode === 'upload' && !file) || (selectedFileMode === 'generated' && !selectedGeneratedFile) || !key || status === 'EXTRACTING'}
                 className="w-full py-3.5 bg-theme-text-main text-theme-base hover:opacity-90 disabled:opacity-50 rounded-xl font-medium transition-all shadow-md flex items-center justify-center gap-2 group"
               >
                 {status === 'EXTRACTING' ? (
@@ -218,14 +226,7 @@ export default function ExtractPage() {
               <div className="md:w-64 space-y-4">
                 <div className="p-4 rounded-xl border border-theme-border bg-theme-base/30 space-y-4">
                   <div>
-                    <span className="block text-[9px] uppercase tracking-[0.2em] text-theme-text-muted font-semibold mb-1">BER Statistics</span>
-                    <div className="flex items-center gap-2">
-                      <Activity className="w-3.5 h-3.5 text-theme-text-muted" />
-                      <span className="font-mono text-xs text-theme-text-main">{extractedData?.ber}</span>
-                    </div>
-                  </div>
-                  <div>
-                    <span className="block text-[9px] uppercase tracking-[0.2em] text-theme-text-muted font-semibold mb-1">Encryption Layer</span>
+                    <span className="block text-[9px] uppercase tracking-[0.2em] text-theme-text-muted font-semibold mb-1">Status</span>
                     <div className="flex items-center gap-2">
                       <ShieldCheck className="w-3.5 h-3.5 text-theme-text-muted" />
                       <span className="font-mono text-[10px] text-theme-text-muted truncate">
