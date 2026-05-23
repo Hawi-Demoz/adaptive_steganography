@@ -9,9 +9,9 @@ export default function EmbedPage() {
   const [message, setMessage] = useState('');
   const [password, setPassword] = useState('');
   const [encrypt, setEncrypt] = useState(true);
-  const [energyPercentile, setEnergyPercentile] = useState(20);
-  const [robustRepeat, setRobustRepeat] = useState(1);
+  const [adaptivityLevel, setAdaptivityLevel] = useState('medium'); // 'low', 'medium', 'high'
   const [isLoading, setIsLoading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
 
   const handleFileChange = (e) => {
     if (e.target.files[0]) setFile(e.target.files[0]);
@@ -21,13 +21,17 @@ export default function EmbedPage() {
     if (!file || !message || !password) return alert("Missing fields criteria.");
     
     setIsLoading(true);
+    setSuccessMsg('');
     const formData = new FormData();
     formData.append('cover', file);
     formData.append('message', message);
     formData.append('password', password);
     formData.append('encrypt', encrypt);
-    formData.append('energy_percentile', energyPercentile);
-    formData.append('robust_repeat', robustRepeat);
+
+    const levelMap = { low: 0, medium: 20, high: 40 };
+    const energyPercentileVal = levelMap[adaptivityLevel];
+    formData.append('energy_percentile', energyPercentileVal);
+    formData.append('robust_repeat', 1);
 
     try {
       const response = await axios.post('http://localhost:5000/api/embed', formData);
@@ -38,7 +42,7 @@ export default function EmbedPage() {
       addGeneratedFile({
         ...stegoData, // stego_filename, cover_filename, original_name, timestamp
         type: 'generated',
-        metrics: { energyPercentile, robustRepeat, encrypt }
+        metrics: { energyPercentile: energyPercentileVal, robustRepeat: 1, encrypt }
       });
 
       // Optionally auto-download immediately (or allow them to grab it from extracting later)
@@ -50,9 +54,11 @@ export default function EmbedPage() {
       link.click();
       document.body.removeChild(link);
       
+      setSuccessMsg("Payload successfully embedded and downloaded! It is now available in session for extraction and visualization.");
     } catch (error) {
       console.error(error);
-      alert("Error generating payload carrier.");
+      const errMsg = error.response?.data?.error || error.message;
+      alert(`Error generating payload carrier: ${errMsg}`);
     } finally {
       setIsLoading(false);
     }
@@ -127,46 +133,48 @@ export default function EmbedPage() {
                 </label>
               </div>
 
-                <div className="flex items-center justify-between p-3 rounded-lg border border-theme-border bg-theme-base/30">
+              {/* Segmented Button Selection for Energy Adaptivity */}
+              <div className="space-y-4">
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium text-theme-text-main">Robust Repeat Factor</span>
-                  <span className="text-xs text-theme-text-muted">Redundant encoding depth</span>
+                  <span className="text-sm font-medium text-theme-text-main">Energy Adaptivity Level</span>
+                  <span className="text-xs text-theme-text-muted">Determines RMS energy threshold for secure embedding</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="number" 
-                    min="1" 
-                    max="10" 
-                    value={robustRepeat} 
-                    onChange={(e) => setRobustRepeat(parseInt(e.target.value) || 1)}
-                    className="w-16 bg-theme-base border border-theme-border rounded-lg p-1.5 text-center text-sm text-theme-text-main focus:outline-none focus:ring-1 focus:ring-theme-accent focus:border-theme-accent transition-all shadow-inner"
-                  />
+                
+                <div className="grid grid-cols-3 gap-1 bg-theme-base/30 p-1 rounded-xl border border-theme-border shadow-inner">
+                  {['low', 'medium', 'high'].map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => setAdaptivityLevel(level)}
+                      className={`py-2 px-3 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer text-center
+                        ${adaptivityLevel === level 
+                          ? 'bg-theme-accent text-theme-base shadow-sm font-bold scale-[1.01]' 
+                          : 'text-theme-text-muted hover:text-theme-text-main hover:bg-theme-border/20'}`}
+                    >
+                      {level}
+                    </button>
+                  ))}
                 </div>
-              </div>
 
-              {/* Slider */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-end">
-                  <div className="flex flex-col">
-                    <label className="text-sm font-medium text-theme-text-main">Acoustic Masking Threshold</label>
-                    <span className="text-xs text-theme-text-muted">RMS Energy Percentile</span>
-                  </div>
-                  <span className="text-sm font-mono text-theme-accent bg-theme-border/30 px-2 py-0.5 rounded">{energyPercentile}%</span>
-                </div>
-                
-                <input 
-                  type="range" min="0" max="100" 
-                  value={energyPercentile} onChange={(e)=>setEnergyPercentile(e.target.value)}
-                  className="w-full h-1.5 bg-theme-border rounded-lg appearance-none cursor-pointer accent-theme-accent"
-                />
-                
-                <div className="flex justify-between text-[10px] uppercase tracking-wider text-theme-text-muted font-semibold">
-                  <span>Capacity</span>
-                  <span>Imperceptibility</span>
+                <div className="flex justify-between text-[10px] text-theme-text-muted font-mono bg-theme-border/10 p-3 rounded-lg border border-theme-border/40">
+                  <span className="flex flex-col items-start gap-0.5">
+                    <span className="font-semibold text-theme-text-main">Capacity</span>
+                    <span>{adaptivityLevel === 'low' ? 'Maximum (100%)' : adaptivityLevel === 'medium' ? 'Optimal (80%)' : 'Conservative (60%)'}</span>
+                  </span>
+                  <span className="flex flex-col items-end gap-0.5">
+                    <span className="font-semibold text-theme-text-main">Imperceptibility</span>
+                    <span>{adaptivityLevel === 'low' ? 'Standard' : adaptivityLevel === 'medium' ? 'Strong' : 'Excellent (Acoustic Masking)'}</span>
+                  </span>
                 </div>
               </div>
             </div>
             
+            {successMsg && (
+              <div className="mt-4 p-3 bg-green-950/30 border border-green-900/50 text-green-400 text-sm rounded-lg text-center animate-in fade-in">
+                {successMsg}
+              </div>
+            )}
+
             <div className="mt-8">
               <button 
                 onClick={handleEmbed}

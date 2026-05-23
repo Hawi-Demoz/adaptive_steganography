@@ -395,30 +395,45 @@ def _show_plots_flow():
             "Enter original cover path for comparison figures",
             default_path="data/original/sample.wav",
         )
+
+    figs_dir = _new_fig_dir()
+    wf_path = figs_dir / "waveform_comparison.png"
+    sp_path = figs_dir / "spectrogram_comparison.png"
+    sn_path = figs_dir / "snr_and_noise.png"
+    hm_path = figs_dir / "bit_difference_heatmap.png"
+
+    print(f"\n[Status] Generating and saving comparison figures to {figs_dir.resolve()}...")
+
     plot_waveform_comparison(
         original_wav=cover_path,
         stego_wav=LAST_STEGO_PATH,
-        save_path=None,
+        save_path=str(wf_path),
         report_stats=True,
     )
     plot_spectrogram_comparison(
         original_wav=cover_path,
         stego_wav=LAST_STEGO_PATH,
-        save_path=None,
+        save_path=str(sp_path),
         report_stats=True,
     )
     plot_snr_and_noise(
         original_wav=cover_path,
         stego_wav=LAST_STEGO_PATH,
-        save_path=None,
+        save_path=str(sn_path),
         report_stats=True,
     )
     plot_bit_difference_heatmap(
         original_wav=cover_path,
         stego_wav=LAST_STEGO_PATH,
-        save_path=None,
+        save_path=str(hm_path),
         report_stats=True,
     )
+
+    print("\n[Figures Saved]")
+    print(f"- Waveform Comparison: {wf_path.resolve()}")
+    print(f"- Spectrogram Comparison: {sp_path.resolve()}")
+    print(f"- SNR & Noise: {sn_path.resolve()}")
+    print(f"- LSB Modification Heatmap: {hm_path.resolve()}")
 
 
 def _payloads_from_text(payload_text: str, count: int, min_len: int, max_len: int) -> list[bytes]:

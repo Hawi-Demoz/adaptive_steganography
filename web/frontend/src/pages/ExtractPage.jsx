@@ -32,7 +32,7 @@ export default function ExtractPage() {
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
-      setStatus('IDLE');
+      setStatus('UPLOAD_SUCCESS');
       setExtractedData(null);
     }
   };
@@ -181,7 +181,14 @@ export default function ExtractPage() {
               </div>
             </div>
 
-            <div className="mt-10">
+            <div className="mt-10 flex flex-col gap-4">
+
+              {status === 'UPLOAD_SUCCESS' && (
+                <div className="p-3 bg-green-950/30 border border-green-900/50 text-green-400 text-sm rounded-lg text-center animate-in fade-in">
+                  Stego carrier successfully staged for engine scan.
+                </div>
+              )}
+
               <button 
                 onClick={handleExtract}
                 disabled={(selectedFileMode === 'upload' && !file) || (selectedFileMode === 'generated' && !selectedGeneratedFile) || !key || status === 'EXTRACTING'}

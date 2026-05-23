@@ -13,9 +13,11 @@ export default function VisualsPage() {
   
   const [imageUrl, setImageUrl] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
 
   const handleGenerate = async () => {
     setLoading(true);
+    setSuccessMsg('');
     setImageUrl(null);
     let coverName = '';
     let stegoName = '';
@@ -40,11 +42,15 @@ export default function VisualsPage() {
       dataSte.append('file', stegoFile);
       const resSte = await fetch('http://localhost:5000/api/upload', { method: 'POST', body: dataSte }).then(r=>r.json());
       stegoName = resSte.filename;
+      setSuccessMsg('Upload successful! Rendering telemetry...');
     }
 
     if (coverName && stegoName) {
       const url = `http://localhost:5000/api/visualize/${plotType}?cover=${coverName}&stego=${stegoName}&t=${Date.now()}`;
       setImageUrl(url);
+      if (selectedFileMode === 'generated') {
+          setSuccessMsg('Telemetry successfully rendered.');
+      }
     }
     setLoading(false);
   };
@@ -103,6 +109,12 @@ export default function VisualsPage() {
         <button onClick={handleGenerate} disabled={loading || (selectedFileMode==='generated' && !selectedGenerated) || (selectedFileMode==='upload' && (!coverFile || !stegoFile))} className="w-full py-3 bg-theme-text-main text-theme-base rounded-xl font-medium flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 transition-all">
           {loading ? <Loader2 className="animate-spin" size={18}/> : 'Generate Telemetry Rendition'}
         </button>
+
+        {successMsg && !loading && imageUrl && (
+            <div className="p-3 bg-green-950/30 border border-green-900/50 text-green-400 text-sm rounded-lg text-center animate-in fade-in">
+              {successMsg}
+            </div>
+        )}
       </div>
 
       {(imageUrl || loading) && (

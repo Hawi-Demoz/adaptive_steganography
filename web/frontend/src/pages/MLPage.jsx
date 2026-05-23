@@ -13,10 +13,12 @@ export default function MLPage() {
   const [mlData, setMlData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [successMsg, setSuccessMsg] = useState('');
 
   const handleAnalyze = async () => {
     setLoading(true);
     setError(null);
+    setSuccessMsg('');
     setMlData(null);
     let coverName = '';
     let stegoName = '';
@@ -42,6 +44,7 @@ export default function MLPage() {
         dataSte.append('file', stegoFile);
         const resSte = await fetch('http://localhost:5000/api/upload', { method: 'POST', body: dataSte }).then(r=>r.json());
         stegoName = resSte.filename;
+        setSuccessMsg('Upload successful! Beginning engine scan...');
       } catch (err) {
         setError("File upload failed.");
         setLoading(false);
@@ -60,6 +63,7 @@ export default function MLPage() {
            setError(featuresRes.error || mseRes.error);
         } else {
            setMlData({ features: featuresRes, mse: mseRes.mse });
+           setSuccessMsg('Analysis completed successfully.');
         }
       } catch (err) {
         setError(err.message);
@@ -105,11 +109,11 @@ export default function MLPage() {
               <div className="space-y-4">
                  <div className="flex flex-col gap-1 w-full">
                     <span className="text-xs text-theme-text-muted">Cover File</span>
-                    <input type="file" onChange={(e)=>setCoverFile(e.target.files[0])} className="text-sm border border-theme-border p-2 rounded bg-theme-base/50"/>
+                    <input type="file" onChange={(e)=>{setCoverFile(e.target.files[0]); setError(null);}} className="text-sm border border-theme-border p-2 rounded bg-theme-base/50"/>
                  </div>
                  <div className="flex flex-col gap-1 w-full">
                     <span className="text-xs text-theme-text-muted">Stego File</span>
-                    <input type="file" onChange={(e)=>setStegoFile(e.target.files[0])} className="text-sm border border-theme-border p-2 rounded bg-theme-base/50"/>
+                    <input type="file" onChange={(e)=>{setStegoFile(e.target.files[0]); setError(null);}} className="text-sm border border-theme-border p-2 rounded bg-theme-base/50"/>
                  </div>
               </div>
             )}
@@ -121,6 +125,12 @@ export default function MLPage() {
             {error && (
               <div className="mt-4 p-3 bg-red-950/30 border border-red-900/50 text-red-400 text-sm rounded-lg text-center">
                 {error}
+              </div>
+            )}
+
+            {successMsg && !error && (
+              <div className="mt-4 p-3 bg-green-950/30 border border-green-900/50 text-green-400 text-sm rounded-lg text-center">
+                {successMsg}
               </div>
             )}
           </div>
