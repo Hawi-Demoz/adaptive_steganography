@@ -25,10 +25,15 @@ app.config.update(
     SESSION_COOKIE_SECURE=os.environ.get('SESSION_COOKIE_SECURE', '1') == '1',
 )
 
-# Configure CORS. If FRONTEND_URL is provided, restrict origins to it, otherwise allow all for convenience.
-FRONTEND_URL = os.environ.get('FRONTEND_URL', '*')
+# Configure CORS. FRONTEND_URL may be a single origin or a comma-separated list of origins.
+FRONTEND_URL = os.environ.get('FRONTEND_URL', '')
+ALLOWED_ORIGINS = [origin.strip() for origin in FRONTEND_URL.split(',') if origin.strip()]
 try:
-    CORS(app, resources={r"/api/*": {"origins": FRONTEND_URL}}, supports_credentials=True)
+    CORS(
+        app,
+        resources={r"/api/*": {"origins": ALLOWED_ORIGINS or '*'}},
+        supports_credentials=True,
+    )
 except Exception:
     # Fallback to permissive CORS if configuration is not available
     CORS(app, supports_credentials=True)
