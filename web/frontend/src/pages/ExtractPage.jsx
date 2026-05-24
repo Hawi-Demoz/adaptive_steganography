@@ -22,6 +22,10 @@ export default function ExtractPage() {
   const [selectedFileMode, setSelectedFileMode] = useState('upload'); // 'upload' or 'generated'
   const [selectedGeneratedFile, setSelectedGeneratedFile] = useState('');
   
+  // Advanced Manual Configs
+  const [manualEncrypt, setManualEncrypt] = useState(true);
+  const [manualAdaptivityLevel, setManualAdaptivityLevel] = useState('low'); // low=0, medium=20, high=40
+
   const [file, setFile] = useState(null);
   const [key, setKey] = useState('');
   const [status, setStatus] = useState('IDLE'); // IDLE, EXTRACTING, VERIFIED, INVALID KEY, CORRUPTED PAYLOAD
@@ -49,6 +53,34 @@ export default function ExtractPage() {
       formData.append('stego_filename', selectedGeneratedFile);
     }
     formData.append('password', key);
+
+    let encryptVal = 'true';
+    let energyVal = '0.0';
+    let robustVal = '1';
+
+    if (selectedFileMode === 'generated') {
+      const gf = generatedFiles.find(f => f.stego_filename === selectedGeneratedFile);
+      if (gf) {
+        encryptVal = gf.encrypt ? 'true' : 'false';
+        energyVal = gf.energy_percentile !== undefined ? gf.energy_percentile.toString() : '0.0';
+        robustVal = gf.robust_repeat !== undefined ? gf.robust_repeat.toString() : '1';
+      }
+    } else {
+      encryptVal = manualEncrypt ? 'true' : 'false';
+      const levelMap = { low: 0, medium: 20, high: 40 };
+      energyVal = levelMap[manualAdaptivityLevel].toString();
+      robustVal = '1';
+    }
+
+    formData.append('encrypt', encryptVal);
+    formData.append('energy_percentile', energyVal);
+    formData.append('robust_repeat', robustVal);
+
+    console.log("Selected stego:", selectedGeneratedFile);
+    console.log("Uploaded file:", file);
+    for (let pair of formData.entries()) {
+      console.log(pair[0], pair[1]);
+    }
 
     try {
       const response = await axios.post('http://localhost:5000/api/extract', formData);
@@ -179,6 +211,44 @@ export default function ExtractPage() {
                 </label>
                 <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="Enter decryption key..." className="w-full bg-theme-base border border-theme-border rounded-xl p-3 text-sm text-theme-text-main placeholder:text-theme-text-muted focus:outline-none focus:ring-1 focus:ring-theme-accent focus:border-theme-accent transition-all shadow-inner" />
               </div>
+
+              {selectedFileMode === 'upload' && (
+                <>
+                  <div className="pt-4 border-t border-theme-border">
+                    <label className="text-[10px] uppercase tracking-[0.2em] text-theme-text-muted font-semibold mb-3 block flex items-center gap-2">
+                      <Settings className="w-3 h-3" />
+                      Manual Configuration
+                    </label>
+                    <div className="flex items-center gap-3 mb-4">
+                      <input 
+                        type="checkbox" 
+                        id="manualEncrypt"
+                        checked={manualEncrypt}
+                        onChange={(e) => setManualEncrypt(e.target.checked)}
+                        className="rounded border-theme-border text-theme-accent focus:ring-theme-accent"
+                      />
+                      <label htmlFor="manualEncrypt" className="text-sm text-theme-text-main">
+                        Payload is AES Encrypted
+                      </label>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase tracking-[0.2em] text-theme-text-muted font-semibold block">
+                        Adaptivity Envelope (Match Embed Parameter)
+                      </label>
+                      <select 
+                        value={manualAdaptivityLevel}
+                        onChange={(e) => setManualAdaptivityLevel(e.target.value)}
+                        className="w-full bg-theme-base border border-theme-border rounded-xl p-3 text-sm text-theme-text-main focus:outline-none focus:ring-1 focus:ring-theme-accent"
+                      >
+                        <option value="low">Low (Standard)</option>
+                        <option value="medium">Medium (Vocal range restricted)</option>
+                        <option value="high">High (Maximum stealth)</option>
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="mt-10 flex flex-col gap-4">

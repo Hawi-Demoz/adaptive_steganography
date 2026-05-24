@@ -1,0 +1,65 @@
+[
+  {
+    "stego_filename": "stego_788ef8b2c1ed448cbb879bbe7324e8a9.wav",
+    "cover_filename": "sample.wav",
+    "original_name": "sample.wav",
+    "timestamp": 1779565718.0760539,
+    "energy_percentile": 40.0,
+    "encrypt": true,
+    "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_81fa0c77f2e84e60aa38c07289dd0fb9.wav",
+    "cover_filename": "sample.wav",
+    "original_name": "sample.wav",
+    "timestamp": 1779605131.4600523,
+    "energy_percentile": 40.0,
+    "encrypt": true,
+    "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_23f707c964ca4eb6aeba71d634cf6e6e.wav",
+    "cover_filename": "sample.wav",
+    "original_name": "sample.wav",
+    "timestamp": 1779605223.522517,
+    "energy_percentile": 40.0,
+    "encrypt": true,
+    "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_293c176f5c944803987b1ca5f816c1e0.wav",
+    "cover_filename": "sample.wav",
+    "original_name": "sample.wav",
+    "timestamp": 1779605927.8910668,
+    "energy_percentile": 40.0,
+    "encrypt": true,
+    "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_e84ec3fb6ad24890a82e93e6003fda7c.wav",
+    "cover_filename": "sample.wav",
+    "original_name": "sample.wav",
+    "timestamp": 1779606532.0092864,
+    "energy_percentile": 20.0,
+    "encrypt": true,
+    "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_6b378fc0a6464efeab995208e27a014b.wav",
+    "cover_filename": "sample.wav",
+    "original_name": "sample.wav",
+    "timestamp": 1779606564.3828356,
+    "energy_percentile": 20.0,
+    "encrypt": true,
+    "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_38fc6527e3864d3da1531f01c05f4d60.wav",
+    "cover_filename": "sample.wav",
+    "original_name": "sample.wav",
+    "timestamp": 1779606594.3223474,
+    "energy_percentile": 20.0,
+    "encrypt": true,
+    "robust_repeat": 1
+  }
+]
