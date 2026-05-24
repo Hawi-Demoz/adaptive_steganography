@@ -13,8 +13,9 @@ from werkzeug.utils import secure_filename
 
 # Resolve system paths to load local python modules
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(ROOT_DIR))
 BACKEND_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT_DIR))
+sys.path.insert(0, str(BACKEND_DIR))
 
 app = Flask(__name__)
 # Enable CORS for frontend integration
@@ -220,7 +221,7 @@ def api_embed():
     # Track in registry
     entry = {
         "stego_filename": stego_name,
-        "cover_filename": original_name,
+        "cover_filename": cover_name,
         "original_name": original_name,
         "timestamp": time.time(),
         "energy_percentile": energy_percentile,
@@ -236,6 +237,9 @@ def api_embed():
         "cover_filename": cover_name,
         "original_name": original_name,
         "timestamp": time.time(),
+        "energy_percentile": energy_percentile,
+        "encrypt": encrypt,
+        "robust_repeat": robust_repeat,
         "snr_db": float(snr_val),
         "lsb_ber": float(lsb_ber_val),
         "payload_ber": None if payload_ber_val is None else float(payload_ber_val),
@@ -284,8 +288,8 @@ def api_extract():
                     pass
                 return jsonify({"success": False, "error": "Invalid password or extraction failed"}), 400
         else:
-            print("Validation failure: missing stego upload")
             stego_name = request.form.get('stego_filename')
+            print(f"Using session stego file: {stego_name}")
             print(f"stego_filename: {stego_name}")
             if not stego_name:
                 print("Validation failure: missing stego_filename")
@@ -315,27 +319,27 @@ def api_extract():
         
         if plaintext is None:
             print("Validation failure: extraction failure")
-            return jsonify({"success": False, "error": "Invalid password or extraction failed"}), 400
+            return jsonify({
+                "success": False,
+                "error": "Invalid password or extraction failed. Use the same key and embed settings used during embedding.",
+            }), 400
 
-          # Try to decode as UTF-8 for human-readable payloads.
-          try:
-              decoded_message = plaintext.decode('utf-8')
-              return jsonify({
-                  "success": True,
-                  "message": decoded_message
-              })
-          except UnicodeDecodeError as ude:
-              # Payload bytes are not valid UTF-8. Return diagnostics and
-              # the raw payload as base64 to allow client-side inspection.
-              import base64
-              app.logger.warning(f"UTF-8 decode failed: {ude}")
-              b64 = base64.b64encode(plaintext).decode('ascii')
-              return jsonify({
-                  "success": True,
-                  "message_b64": b64,
-                  "utf8_error": str(ude),
-                  "note": "Payload is binary or wrong parameters were used for extraction."
-              })
+        try:
+            decoded_message = plaintext.decode('utf-8')
+            return jsonify({
+                "success": True,
+                "message": decoded_message
+            })
+        except UnicodeDecodeError as ude:
+            import base64
+            app.logger.warning(f"UTF-8 decode failed: {ude}")
+            b64 = base64.b64encode(plaintext).decode('ascii')
+            return jsonify({
+                "success": True,
+                "message_b64": b64,
+                "utf8_error": str(ude),
+                "note": "Payload is binary or wrong parameters were used for extraction."
+            })
     except Exception as e:
         print(f"Extraction exception: {str(e)}")
         return jsonify({
@@ -350,6 +354,130 @@ def api_download(filename):
     if os.path.exists(os.path.join(STEGO_FOLDER, filename)):
         return send_from_directory(STEGO_FOLDER, filename, as_attachment=True)
     return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
+
+
+def _resolve_pair_from_request():
+    cover_name = request.args.get('cover', '')
+    stego_name = request.args.get('stego', '')
+    if not cover_name or not stego_name:
+        return None, json_error("Missing cover or stego filename.")
+
+    from analytics import resolve_session_pair
+    cover_path, stego_path, session = resolve_session_pair(
+        cover_name, stego_name, UPLOAD_FOLDER, STEGO_FOLDER, _load_registry()
+    )
+    if not cover_path or not stego_path:
+        return None, (jsonify({"error": "Audio carrier files not found on server."}), 404)
+    return (cover_path, stego_path, session), None
+
+
+def _render_dashboard_plot(plot_fn, plot_kwargs=None):
+    import inspect
+    import matplotlib
+    matplotlib.use('Agg')
+
+    pair, err = _resolve_pair_from_request()
+    if err:
+        return err
+    cover_path, stego_path, session = pair
+    plot_kwargs = dict(plot_kwargs or {})
+
+    energy_raw = request.args.get('energy_percentile')
+    energy_val = None
+    if energy_raw is not None:
+        energy_val = float(energy_raw)
+    elif session and session.get('energy_percentile') is not None:
+        energy_val = float(session['energy_percentile'])
+
+    if energy_val is not None and 'energy_percentile' in inspect.signature(plot_fn).parameters:
+        plot_kwargs['energy_percentile'] = energy_val
+
+    out_name = f"{plot_fn.__name__}_{uuid.uuid4().hex}.png"
+    out_path = os.path.join(VISUALIZATION_FOLDER, out_name)
+    plot_fn(cover_path, stego_path, save_path=out_path, **plot_kwargs)
+    return send_file(out_path, mimetype='image/png')
+
+
+@app.route('/api/analytics/summary')
+def api_analytics_summary():
+    """Return real comparative metrics for cover/stego pair."""
+    pair, err = _resolve_pair_from_request()
+    if err:
+        return err
+    cover_path, stego_path, session = pair
+
+    from analytics import build_analytics_summary
+    return jsonify(build_analytics_summary(cover_path, stego_path, session))
+
+
+@app.route('/api/visualize/waveform')
+def api_viz_waveform():
+    from src.viz_dashboard import plot_dashboard_waveform
+    return _render_dashboard_plot(plot_dashboard_waveform)
+
+
+@app.route('/api/visualize/spectrogram')
+def api_viz_spectrogram():
+    from src.viz_dashboard import plot_dashboard_spectrogram
+    return _render_dashboard_plot(plot_dashboard_spectrogram)
+
+
+@app.route('/api/visualize/heatmap')
+def api_viz_heatmap():
+    from src.viz_dashboard import plot_dashboard_heatmap
+    return _render_dashboard_plot(plot_dashboard_heatmap)
+
+
+@app.route('/api/visualize/energy-profile')
+def api_viz_energy_profile():
+    from src.viz_dashboard import plot_dashboard_energy_profile
+    return _render_dashboard_plot(plot_dashboard_energy_profile)
+
+
+@app.route('/api/visualize/embedding-density')
+def api_viz_embedding_density():
+    from src.viz_dashboard import plot_dashboard_embedding_density
+    return _render_dashboard_plot(plot_dashboard_embedding_density)
+
+
+@app.route('/api/visualize/lsb-analysis')
+def api_viz_lsb_analysis():
+    from src.viz_dashboard import plot_dashboard_lsb_analysis
+    return _render_dashboard_plot(plot_dashboard_lsb_analysis)
+
+
+@app.route('/api/visualize/snr')
+def api_viz_snr():
+    from src.viz_dashboard import plot_dashboard_snr
+    return _render_dashboard_plot(plot_dashboard_snr)
+
+
+@app.route('/api/visualize/detectability')
+def api_viz_detectability():
+    import matplotlib
+    matplotlib.use('Agg')
+
+    pair, err = _resolve_pair_from_request()
+    if err:
+        return err
+    cover_path, stego_path, session = pair
+
+    from analytics import _compute_mse, _detectability_from_mse
+    from src.viz_dashboard import plot_dashboard_detectability
+
+    mse = _compute_mse(cover_path, stego_path)
+    score, _ = _detectability_from_mse(mse)
+
+    out_name = f"detectability_{uuid.uuid4().hex}.png"
+    out_path = os.path.join(VISUALIZATION_FOLDER, out_name)
+    plot_dashboard_detectability(
+        cover_path,
+        stego_path,
+        save_path=out_path,
+        detectability_score=score,
+        score_source="mse_proxy",
+    )
+    return send_file(out_path, mimetype='image/png')
 
 
 @app.route('/api/visualize/<plot_type>')

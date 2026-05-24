@@ -100,3 +100,41 @@ h1, h2, h3, h4, h5, h6 {
 .dark .glass-panel {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
+
+/* Analytics dashboard */
+.analytics-hero {
+  background: linear-gradient(135deg, var(--theme-card) 0%, var(--theme-base) 60%, rgba(34, 211, 238, 0.06) 100%);
+}
+
+.dark .analytics-hero {
+  background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, rgba(34, 211, 238, 0.08) 100%);
+  box-shadow: 0 0 60px rgba(34, 211, 238, 0.06);
+}
+
+.analytics-card {
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+.analytics-card:hover {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+}
+
+.dark .analytics-card:hover {
+  box-shadow: 0 12px 40px rgba(34, 211, 238, 0.08);
+  border-color: rgba(34, 211, 238, 0.2);
+}
+
+.analytics-grid {
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.dark {
+  --viz-glow: rgba(34, 211, 238, 0.35);
+}
+
+:root {
+  --viz-glow: rgba(108, 122, 137, 0.25);
+}

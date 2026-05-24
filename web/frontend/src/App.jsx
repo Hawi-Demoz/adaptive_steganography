@@ -51,7 +51,7 @@ function App() {
 
         {/* Main Content Area */}
         <main className="flex-1 p-8 md:p-12 overflow-y-auto relative z-10">
-          <div className="max-w-5xl mx-auto">
+          <div className="max-w-[1400px] mx-auto">
             <Routes>
               <Route path="/" element={<EmbedPage />} />
               <Route path="/extract" element={<ExtractPage />} />

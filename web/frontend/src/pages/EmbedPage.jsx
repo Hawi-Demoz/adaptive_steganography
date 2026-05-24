@@ -4,7 +4,7 @@ import { useStego } from '../context/StegoContext';
 import { UploadCloud, Settings, Shield, FileAudio, KeyRound, Type, SlidersHorizontal, ArrowRight } from 'lucide-react';
 
 export default function EmbedPage() {
-  const { addGeneratedFile } = useStego();
+  const { refreshGeneratedFiles } = useStego();
   const [file, setFile] = useState(null);
   const [message, setMessage] = useState('');
   const [password, setPassword] = useState('');
@@ -26,24 +26,18 @@ export default function EmbedPage() {
     formData.append('cover', file);
     formData.append('message', message);
     formData.append('password', password);
-    formData.append('encrypt', encrypt);
+    formData.append('encrypt', encrypt ? 'true' : 'false');
 
     const levelMap = { low: 0, medium: 20, high: 40 };
     const energyPercentileVal = levelMap[adaptivityLevel];
-    formData.append('energy_percentile', energyPercentileVal);
+    formData.append('energy_percentile', String(energyPercentileVal));
     formData.append('robust_repeat', 1);
 
     try {
       const response = await axios.post('http://localhost:5000/api/embed', formData);
       
       const stegoData = response.data;
-      
-      // Save globally
-      addGeneratedFile({
-        ...stegoData, // stego_filename, cover_filename, original_name, timestamp
-        type: 'generated',
-        metrics: { energyPercentile: energyPercentileVal, robustRepeat: 1, encrypt }
-      });
+      await refreshGeneratedFiles();
 
       // Optionally auto-download immediately (or allow them to grab it from extracting later)
       const downloadUrl = `http://localhost:5000/api/download/${stegoData.stego_filename}`;

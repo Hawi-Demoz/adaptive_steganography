@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useStego } from '../context/StegoContext';
 import { 
@@ -17,14 +17,42 @@ import {
   Unlock
 } from 'lucide-react';
 
+function getSessionEmbedParams(fileEntry) {
+  if (!fileEntry) return null;
+  return {
+    encrypt: fileEntry.encrypt ?? fileEntry.metrics?.encrypt ?? true,
+    energy_percentile: fileEntry.energy_percentile ?? fileEntry.metrics?.energyPercentile ?? 0,
+    robust_repeat: fileEntry.robust_repeat ?? fileEntry.metrics?.robustRepeat ?? 1,
+  };
+}
+
+function formatAdaptivityLevel(energyPercentile) {
+  if (energyPercentile >= 40) return 'High (40)';
+  if (energyPercentile >= 20) return 'Medium (20)';
+  return 'Low (0)';
+}
+
+function energyToAdaptivityLevel(energyPercentile) {
+  if (energyPercentile >= 40) return 'high';
+  if (energyPercentile >= 20) return 'medium';
+  return 'low';
+}
+
+function findSessionFileByName(filename, generatedFiles) {
+  if (!filename) return null;
+  return generatedFiles.find((entry) => entry.stego_filename === filename) || null;
+}
+
 export default function ExtractPage() {
   const { generatedFiles } = useStego();
-  const [selectedFileMode, setSelectedFileMode] = useState('upload'); // 'upload' or 'generated'
+  const [selectedFileMode, setSelectedFileMode] = useState('generated'); // 'upload' or 'generated'
   const [selectedGeneratedFile, setSelectedGeneratedFile] = useState('');
   
   // Advanced Manual Configs
   const [manualEncrypt, setManualEncrypt] = useState(true);
-  const [manualAdaptivityLevel, setManualAdaptivityLevel] = useState('low'); // low=0, medium=20, high=40
+  const [manualAdaptivityLevel, setManualAdaptivityLevel] = useState('medium'); // low=0, medium=20, high=40
+  const [manualRobustRepeat, setManualRobustRepeat] = useState(1);
+  const [manualParamsDetected, setManualParamsDetected] = useState(false);
 
   const [file, setFile] = useState(null);
   const [key, setKey] = useState('');
@@ -33,11 +61,54 @@ export default function ExtractPage() {
   
   const fileInputRef = useRef(null);
 
+  const selectedSessionFile = useMemo(
+    () => generatedFiles.find((entry) => entry.stego_filename === selectedGeneratedFile),
+    [generatedFiles, selectedGeneratedFile]
+  );
+  const selectedSessionParams = useMemo(
+    () => getSessionEmbedParams(selectedSessionFile),
+    [selectedSessionFile]
+  );
+
+  useEffect(() => {
+    if (selectedFileMode !== 'generated' || generatedFiles.length === 0) return;
+    const stillSelected = generatedFiles.some(
+      (entry) => entry.stego_filename === selectedGeneratedFile
+    );
+    if (!stillSelected) {
+      setSelectedGeneratedFile(generatedFiles[generatedFiles.length - 1].stego_filename);
+    }
+  }, [generatedFiles, selectedFileMode, selectedGeneratedFile]);
+
+  const applyManualParamsFromUpload = (uploadedFile) => {
+    const sessionMatch = findSessionFileByName(uploadedFile?.name, generatedFiles);
+    const sessionParams = getSessionEmbedParams(sessionMatch);
+    if (sessionParams) {
+      setManualEncrypt(sessionParams.encrypt);
+      setManualAdaptivityLevel(energyToAdaptivityLevel(sessionParams.energy_percentile));
+      setManualRobustRepeat(sessionParams.robust_repeat);
+      setManualParamsDetected(true);
+      return;
+    }
+    setManualParamsDetected(false);
+  };
+
+  const stageUploadedFile = (uploadedFile) => {
+    setFile(uploadedFile);
+    setStatus('UPLOAD_SUCCESS');
+    setExtractedData(null);
+    applyManualParamsFromUpload(uploadedFile);
+  };
+
+  useEffect(() => {
+    if (selectedFileMode === 'upload' && file) {
+      applyManualParamsFromUpload(file);
+    }
+  }, [generatedFiles, selectedFileMode, file]);
+
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-      setStatus('UPLOAD_SUCCESS');
-      setExtractedData(null);
+      stageUploadedFile(e.target.files[0]);
     }
   };
 
@@ -59,17 +130,19 @@ export default function ExtractPage() {
     let robustVal = '1';
 
     if (selectedFileMode === 'generated') {
-      const gf = generatedFiles.find(f => f.stego_filename === selectedGeneratedFile);
-      if (gf) {
-        encryptVal = gf.encrypt ? 'true' : 'false';
-        energyVal = gf.energy_percentile !== undefined ? gf.energy_percentile.toString() : '0.0';
-        robustVal = gf.robust_repeat !== undefined ? gf.robust_repeat.toString() : '1';
+      const sessionParams = getSessionEmbedParams(
+        generatedFiles.find((entry) => entry.stego_filename === selectedGeneratedFile)
+      );
+      if (sessionParams) {
+        encryptVal = sessionParams.encrypt ? 'true' : 'false';
+        energyVal = String(sessionParams.energy_percentile);
+        robustVal = String(sessionParams.robust_repeat);
       }
     } else {
       encryptVal = manualEncrypt ? 'true' : 'false';
       const levelMap = { low: 0, medium: 20, high: 40 };
       energyVal = levelMap[manualAdaptivityLevel].toString();
-      robustVal = '1';
+      robustVal = String(manualRobustRepeat);
     }
 
     formData.append('encrypt', encryptVal);
@@ -85,12 +158,22 @@ export default function ExtractPage() {
     try {
       const response = await axios.post('http://localhost:5000/api/extract', formData);
 
-      if (response.data && response.data.message) {
-        setStatus('VERIFIED');
-        setExtractedData({
-          text: response.data.message,
-          metadata: 'Extraction completed'
-        });
+      if (response.data?.success) {
+        if (response.data.message) {
+          setStatus('VERIFIED');
+          setExtractedData({
+            text: response.data.message,
+            metadata: 'Extraction completed'
+          });
+        } else if (response.data.message_b64) {
+          setStatus('CORRUPTED PAYLOAD');
+          setExtractedData({
+            text: `Recovered binary payload (base64): ${response.data.message_b64}`,
+            metadata: response.data.note || 'Wrong embed parameters or binary payload'
+          });
+        }
+      } else {
+        throw new Error(response.data?.error || 'Extraction failed');
       }
     } catch (error) {
       console.error(error);
@@ -160,6 +243,7 @@ export default function ExtractPage() {
                  {generatedFiles.length === 0 ? (
                    <div className="text-sm text-theme-text-muted italic py-8 text-center flex-1">No session files generated yet.</div>
                  ) : (
+                   <>
                    <select 
                      value={selectedGeneratedFile}
                      onChange={(e) => setSelectedGeneratedFile(e.target.value)}
@@ -172,6 +256,15 @@ export default function ExtractPage() {
                        </option>
                      ))}
                    </select>
+                   {selectedSessionParams && (
+                     <div className="rounded-xl border border-theme-border bg-theme-base/30 p-3 text-xs text-theme-text-muted space-y-1">
+                       <p><span className="font-semibold text-theme-text-main">Session embed settings:</span> auto-applied during extraction</p>
+                       <p>Encryption: {selectedSessionParams.encrypt ? 'AES enabled' : 'Off'}</p>
+                       <p>Adaptivity: {formatAdaptivityLevel(selectedSessionParams.energy_percentile)}</p>
+                       <p>Robust repeat: {selectedSessionParams.robust_repeat}</p>
+                     </div>
+                   )}
+                   </>
                  )}
                </div>
             ) : (
@@ -181,7 +274,7 @@ export default function ExtractPage() {
                  onDragOver={(e) => e.preventDefault()}
                  onDrop={(e) => {
                    e.preventDefault();
-                   if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+                   if (e.dataTransfer.files[0]) stageUploadedFile(e.dataTransfer.files[0]);
                  }}
                  onClick={() => fileInputRef.current?.click()}
                >
@@ -224,7 +317,10 @@ export default function ExtractPage() {
                         type="checkbox" 
                         id="manualEncrypt"
                         checked={manualEncrypt}
-                        onChange={(e) => setManualEncrypt(e.target.checked)}
+                        onChange={(e) => {
+                          setManualEncrypt(e.target.checked);
+                          setManualParamsDetected(false);
+                        }}
                         className="rounded border-theme-border text-theme-accent focus:ring-theme-accent"
                       />
                       <label htmlFor="manualEncrypt" className="text-sm text-theme-text-main">
@@ -238,13 +334,25 @@ export default function ExtractPage() {
                       </label>
                       <select 
                         value={manualAdaptivityLevel}
-                        onChange={(e) => setManualAdaptivityLevel(e.target.value)}
+                        onChange={(e) => {
+                          setManualAdaptivityLevel(e.target.value);
+                          setManualParamsDetected(false);
+                        }}
                         className="w-full bg-theme-base border border-theme-border rounded-xl p-3 text-sm text-theme-text-main focus:outline-none focus:ring-1 focus:ring-theme-accent"
                       >
-                        <option value="low">Low (Standard)</option>
-                        <option value="medium">Medium (Vocal range restricted)</option>
-                        <option value="high">High (Maximum stealth)</option>
+                        <option value="low">Low (0)</option>
+                        <option value="medium">Medium (20)</option>
+                        <option value="high">High (40)</option>
                       </select>
+                      {manualParamsDetected ? (
+                        <p className="text-xs text-emerald-500">
+                          Embed settings auto-detected from session registry for this file.
+                        </p>
+                      ) : (
+                        <p className="text-xs text-theme-text-muted">
+                          Must match the encryption and adaptivity level used during embedding.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </>

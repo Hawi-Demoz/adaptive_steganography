@@ -61,5 +61,140 @@
     "energy_percentile": 20.0,
     "encrypt": true,
     "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_6d8b969bb2bb43b5ab56be0ade6e376c.wav",
+    "cover_filename": "_test_stego.wav",
+    "original_name": "_test_stego.wav",
+    "timestamp": 1779610145.1694794,
+    "energy_percentile": 20.0,
+    "encrypt": true,
+    "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_96808fa316fb47f399d97f016eb73ba6.wav",
+    "cover_filename": "cover_08b82a7178bd4cbb8da3470a164f0acd.wav",
+    "original_name": "cover_08b82a7178bd4cbb8da3470a164f0acd.wav",
+    "timestamp": 1779610217.4615126,
+    "energy_percentile": 40.0,
+    "encrypt": true,
+    "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_de1a99fef30547f3a39aff3ae212f6e5.wav",
+    "cover_filename": "cover_08b82a7178bd4cbb8da3470a164f0acd.wav",
+    "original_name": "cover_08b82a7178bd4cbb8da3470a164f0acd.wav",
+    "timestamp": 1779610228.5425005,
+    "energy_percentile": 40.0,
+    "encrypt": true,
+    "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_4323e7a8913a4011ba5a44b51f5cb9e1.wav",
+    "cover_filename": "cover_02c52ea4ca324aaa83b97b6159486629.wav",
+    "original_name": "cover_02c52ea4ca324aaa83b97b6159486629.wav",
+    "timestamp": 1779610255.5089192,
+    "energy_percentile": 20.0,
+    "encrypt": true,
+    "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_b94dd4cc8b0d486989864b61193b46d3.wav",
+    "cover_filename": "cover_02c52ea4ca324aaa83b97b6159486629.wav",
+    "original_name": "cover_02c52ea4ca324aaa83b97b6159486629.wav",
+    "timestamp": 1779610295.198342,
+    "energy_percentile": 20.0,
+    "encrypt": true,
+    "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_86818513dddf4072861023d2f3abd745.wav",
+    "cover_filename": "cover_02c52ea4ca324aaa83b97b6159486629.wav",
+    "original_name": "cover_02c52ea4ca324aaa83b97b6159486629.wav",
+    "timestamp": 1779610326.8269594,
+    "energy_percentile": 20.0,
+    "encrypt": false,
+    "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_05c5b8ede7084f03b43a5b2da9032b01.wav",
+    "cover_filename": "cover_02c52ea4ca324aaa83b97b6159486629.wav",
+    "original_name": "cover_02c52ea4ca324aaa83b97b6159486629.wav",
+    "timestamp": 1779610343.834523,
+    "energy_percentile": 0.0,
+    "encrypt": true,
+    "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_5da9928dc2574870b8ef96fed7d9368a.wav",
+    "cover_filename": "cover_02c52ea4ca324aaa83b97b6159486629.wav",
+    "original_name": "cover_02c52ea4ca324aaa83b97b6159486629.wav",
+    "timestamp": 1779610344.020178,
+    "energy_percentile": 0.0,
+    "encrypt": false,
+    "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_efb09cfa8cff453f95947fc15755e1ef.wav",
+    "cover_filename": "cover_02c52ea4ca324aaa83b97b6159486629.wav",
+    "original_name": "cover_02c52ea4ca324aaa83b97b6159486629.wav",
+    "timestamp": 1779610344.1921742,
+    "energy_percentile": 0.0,
+    "encrypt": true,
+    "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_ab40f5a84d6443baaefb5ade27a7e508.wav",
+    "cover_filename": "cover_02c52ea4ca324aaa83b97b6159486629.wav",
+    "original_name": "cover_02c52ea4ca324aaa83b97b6159486629.wav",
+    "timestamp": 1779610344.3631291,
+    "energy_percentile": 0.0,
+    "encrypt": true,
+    "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_9d123baa0bef4cae9604376b782b598f.wav",
+    "cover_filename": "cover_02c52ea4ca324aaa83b97b6159486629.wav",
+    "original_name": "cover_02c52ea4ca324aaa83b97b6159486629.wav",
+    "timestamp": 1779610344.543186,
+    "energy_percentile": 0.0,
+    "encrypt": true,
+    "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_5026df4e03da41d9a81602a2e4f4e546.wav",
+    "cover_filename": "cover_02c52ea4ca324aaa83b97b6159486629.wav",
+    "original_name": "cover_02c52ea4ca324aaa83b97b6159486629.wav",
+    "timestamp": 1779610344.7365453,
+    "energy_percentile": 0.0,
+    "encrypt": false,
+    "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_5050177b23864c6dac1c0e5f146822d2.wav",
+    "cover_filename": "_test_stego.wav",
+    "original_name": "_test_stego.wav",
+    "timestamp": 1779610462.3746047,
+    "energy_percentile": 20.0,
+    "encrypt": true,
+    "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_5e81ae34aee74394a88de0dd3b89d650.wav",
+    "cover_filename": "sample.wav",
+    "original_name": "sample.wav",
+    "timestamp": 1779610564.4432452,
+    "energy_percentile": 40.0,
+    "encrypt": true,
+    "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_ea1ab1b17ef84c7eafbd9569275bd88d.wav",
+    "cover_filename": "cover_691ab056314b41dcaa284e15e8e0f488.wav",
+    "original_name": "sample.wav",
+    "timestamp": 1779611978.7980003,
+    "energy_percentile": 40.0,
+    "encrypt": true,
+    "robust_repeat": 1
   }
 ]
