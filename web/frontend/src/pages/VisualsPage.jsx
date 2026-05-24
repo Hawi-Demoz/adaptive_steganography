@@ -31,7 +31,6 @@ const VIZ_CATALOG = [
   { id: 'density', label: 'Density', icon: Sparkles, endpoint: '/api/visualize/embedding-density', desc: 'Payload concentration across high-energy frames' },
   { id: 'lsb', label: 'LSB Analysis', icon: BarChart3, endpoint: '/api/visualize/lsb-analysis', desc: 'Bit-flip directionality and forensic map' },
   { id: 'snr', label: 'SNR', icon: Gauge, endpoint: '/api/visualize/snr', desc: 'Signal-to-noise ratio and distortion residual' },
-  { id: 'detectability', label: 'Detectability', icon: Shield, endpoint: '/api/visualize/detectability', desc: 'MSE-derived steganographic risk assessment' },
 ];
 
 const METRIC_TOOLTIPS = {
@@ -40,18 +39,11 @@ const METRIC_TOOLTIPS = {
   payload_ber: 'Recovered payload bit error rate from embed/extract verification (when available).',
   capacity_usage: 'Fraction of audio samples with LSB modifications.',
   energy_localization: 'Share of LSB changes occurring in high-energy preferred frames.',
-  detectability_score: 'Normalized divergence score derived from real cover/stego MSE.',
 };
 
 function formatPct(v) {
   if (v == null || Number.isNaN(v)) return '—';
   return `${(v * 100).toFixed(3)}%`;
-}
-
-function riskColor(risk) {
-  if (risk === 'LOW') return 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10';
-  if (risk === 'MEDIUM') return 'text-amber-400 border-amber-500/40 bg-amber-500/10';
-  return 'text-red-400 border-red-500/40 bg-red-500/10';
 }
 
 function Skeleton({ className = '' }) {
@@ -62,6 +54,7 @@ export default function VisualsPage() {
   const location = useLocation();
   const {
     generatedFiles,
+    refreshGeneratedFiles,
     visualsMode: mode,
     setVisualsMode: setMode,
     visualsSelectedStego: selectedStego,
@@ -96,7 +89,8 @@ export default function VisualsPage() {
         setSelectedStego(stateStego);
 
         const runAutoAnalysis = async () => {
-          const entry = generatedFiles.find((f) => f.stego_filename === stateStego);
+          const files = await refreshGeneratedFiles();
+          const entry = Array.isArray(files) ? files.find((f) => f.stego_filename === stateStego) : generatedFiles.find((f) => f.stego_filename === stateStego);
           if (!entry) return;
 
           setError(null);
@@ -196,6 +190,7 @@ export default function VisualsPage() {
       return {};
     });
     try {
+      await refreshGeneratedFiles();
       const pair = await resolvePair();
       if (!pair) {
         setError('Select or upload cover and stego files.');
@@ -287,7 +282,6 @@ export default function VisualsPage() {
             <div className="flex flex-wrap gap-2">
               <Badge icon={<Shield size={14} />} label={summary.security_status} accent />
               <Badge icon={<Gauge size={14} />} label={`SNR ${summary.snr_db.toFixed(1)} dB`} />
-              <Badge icon={<Layers size={14} />} label={`Risk ${summary.detectability_risk}`} />
             </div>
           )}
         </div>
@@ -328,7 +322,7 @@ export default function VisualsPage() {
           <button
             onClick={runAnalysis}
             disabled={loadingSummary || (mode === 'generated' ? !selectedStego : !coverFile || !stegoFile)}
-            className="ml-auto px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-600/90 to-blue-600/90 text-white font-medium shadow-lg shadow-cyan-500/20 hover:opacity-90 disabled:opacity-40 flex items-center gap-2 transition-all"
+            className="ml-auto px-6 py-3 rounded-xl bg-linear-to-r from-cyan-600/90 to-blue-600/90 text-white font-medium shadow-lg shadow-cyan-500/20 hover:opacity-90 disabled:opacity-40 flex items-center gap-2 transition-all"
           >
             {loadingSummary ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
             Run Forensic Analysis
@@ -349,7 +343,6 @@ export default function VisualsPage() {
                 <MetricCard title="Payload BER" value={summary.payload_ber != null ? summary.payload_ber.toExponential(2) : 'N/A'} tooltip={METRIC_TOOLTIPS.payload_ber} />
                 <MetricCard title="Capacity" value={formatPct(summary.capacity_usage)} tooltip={METRIC_TOOLTIPS.capacity_usage} />
                 <MetricCard title="Energy Loc." value={formatPct(summary.energy_localization)} tooltip={METRIC_TOOLTIPS.energy_localization} />
-                <MetricCard title="Detectability" value={summary.detectability_score.toFixed(3)} sub={summary.detectability_risk} tooltip={METRIC_TOOLTIPS.detectability_score} risk={summary.detectability_risk} />
               </>
             )}
         </section>
@@ -389,7 +382,7 @@ export default function VisualsPage() {
           </div>
 
           {/* Primary view */}
-          <div className="glass-panel rounded-2xl p-6 analytics-card min-h-[420px]">
+          <div className="glass-panel rounded-2xl p-6 analytics-card min-h-105">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-lg font-semibold text-theme-text-main">{activeViz?.label}</h3>
@@ -404,7 +397,7 @@ export default function VisualsPage() {
                 )}
               </div>
             </div>
-            <div className="relative rounded-xl overflow-hidden border border-theme-border bg-black/40 min-h-[360px] flex items-center justify-center">
+            <div className="relative rounded-xl overflow-hidden border border-theme-border bg-black/40 min-h-90 flex items-center justify-center">
               {loadingViz[activeTab] && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-theme-base/60 backdrop-blur-sm z-10">
                   <Loader2 className="animate-spin text-cyan-400" size={32} />
@@ -472,12 +465,12 @@ function Badge({ icon, label, accent }) {
   );
 }
 
-function MetricCard({ title, value, sub, tooltip, risk }) {
+function MetricCard({ title, value, sub, tooltip }) {
   return (
     <div className="glass-panel rounded-2xl p-4 analytics-card group relative" title={tooltip}>
       <p className="text-[10px] uppercase tracking-widest text-theme-text-muted mb-2">{title}</p>
       <p className="text-xl font-bold text-theme-text-main font-mono">{value}</p>
-      {sub && <p className={`text-xs mt-1 font-semibold ${risk ? riskColor(risk).split(' ')[0] : 'text-theme-text-muted'}`}>{sub}</p>}
+      {sub && <p className="text-xs mt-1 font-semibold text-theme-text-muted">{sub}</p>}
     </div>
   );
 }

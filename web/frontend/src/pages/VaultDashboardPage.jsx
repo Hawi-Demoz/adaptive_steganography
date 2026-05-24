@@ -90,16 +90,11 @@ export default function VaultDashboardPage() {
                 <div className="mb-4">
                   <div className="flex flex-wrap items-center gap-2 mb-1">
                     <span className="text-xs font-mono text-theme-accent bg-theme-accent/10 px-2 py-0.5 rounded border border-theme-accent/20">
-                      ID: {file.id || file.stego_filename.split('_')[1]?.substring(0, 8) || 'unknown'}
+                      ID: {file.id || file.stego_filename.replace(/\.wav$/i, '').substring(0, 8) || 'unknown'}
                     </span>
                     {file.encrypt && (
                       <span className="text-[10px] font-mono text-green-400 flex items-center gap-1 bg-green-400/10 px-1.5 py-0.5 rounded border border-green-400/20">
                         <Lock size={10} /> ENCRYPTED
-                      </span>
-                    )}
-                    {file.robust_repeat > 1 && (
-                      <span className="text-[10px] font-mono text-purple-400 flex items-center gap-1 bg-purple-400/10 px-1.5 py-0.5 rounded border border-purple-400/20">
-                        ROBUST
                       </span>
                     )}
                     {file.energy_percentile > 0 && (
@@ -130,23 +125,19 @@ export default function VaultDashboardPage() {
                   <div className="space-y-1 mb-4 text-xs font-mono animate-in fade-in slide-in-from-top-2">
                     <div className="flex justify-between border-b border-theme-border/50 pb-1">
                       <span className="text-theme-text-muted">Carrier</span>
-                      <span className="truncate max-w-[120px]" title={file.original_cover_name || file.original_name || file.cover_filename}>
+                      <span className="truncate max-w-30" title={file.original_cover_name || file.original_name || file.cover_filename}>
                         {file.original_cover_name || file.original_name || file.cover_filename}
                       </span>
                     </div>
                     <div className="flex justify-between border-b border-theme-border/50 pb-1">
                       <span className="text-theme-text-muted">Stego Output</span>
-                      <span className="truncate max-w-[120px]" title={file.stego_filename}>
+                      <span className="truncate max-w-30" title={file.stego_filename}>
                         {file.stego_filename}
                       </span>
                     </div>
                     <div className="flex justify-between border-b border-theme-border/50 pb-1">
                       <span className="text-theme-text-muted">Energy</span>
                       <span>{file.energy_percentile}%</span>
-                    </div>
-                    <div className="flex justify-between border-b border-theme-border/50 pb-1">
-                      <span className="text-theme-text-muted">Robustness</span>
-                      <span>{file.robust_repeat}x</span>
                     </div>
                     <div className="flex justify-between border-b border-theme-border/50 pb-1">
                       <span className="text-theme-text-muted">Encryption</span>
@@ -163,7 +154,7 @@ export default function VaultDashboardPage() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-3 gap-2 mt-auto">
+                <div className="grid grid-cols-5 gap-2 mt-auto">
                   <button 
                     onClick={() => handleExtract(file)}
                     className="flex flex-col items-center justify-center py-2 bg-theme-border/30 hover:bg-theme-accent/20 text-theme-text-main hover:text-theme-accent rounded-lg transition-colors border border-transparent hover:border-theme-accent/30 gap-1 text-xs"
@@ -187,6 +178,53 @@ export default function VaultDashboardPage() {
                   >
                     <Download size={16} />
                     <span>Save</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const newName = window.prompt('Enter new filename (with or without .wav):', file.stego_filename);
+                      if (!newName) return;
+                      try {
+                        await fetch(`http://localhost:5000/api/session/files/${encodeURIComponent(file.stego_filename)}`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ new_name: newName }),
+                          credentials: 'include',
+                        }).then(r => r.json()).then(res => {
+                          if (res.error) throw new Error(res.error);
+                        });
+                        await refreshGeneratedFiles();
+                        setExpandedFiles(prev => ({ ...prev, [file.stego_filename]: false }));
+                      } catch (err) {
+                        alert('Rename failed: ' + (err.message || err));
+                      }
+                    }}
+                    className="flex flex-col items-center justify-center py-2 bg-theme-border/30 hover:bg-yellow-500/20 text-theme-text-main hover:text-yellow-400 rounded-lg transition-colors border border-transparent hover:border-yellow-500/30 gap-1 text-xs"
+                    title="Rename file"
+                  >
+                    <Clock size={16} />
+                    <span>Rename</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!window.confirm(`Delete ${file.stego_filename}? This cannot be undone.`)) return;
+                      try {
+                        const res = await fetch(`http://localhost:5000/api/session/files/${encodeURIComponent(file.stego_filename)}`, {
+                          method: 'DELETE',
+                          credentials: 'include',
+                        });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error || 'Delete failed');
+                        await refreshGeneratedFiles();
+                        setExpandedFiles(prev => ({ ...prev, [file.stego_filename]: false }));
+                      } catch (err) {
+                        alert('Delete failed: ' + (err.message || err));
+                      }
+                    }}
+                    className="flex flex-col items-center justify-center py-2 bg-theme-border/30 hover:bg-red-500/20 text-theme-text-main hover:text-red-400 rounded-lg transition-colors border border-transparent hover:border-red-500/30 gap-1 text-xs"
+                    title="Delete file"
+                  >
+                    <Unlock size={16} />
+                    <span>Delete</span>
                   </button>
                 </div>
               </div>

@@ -104,17 +104,6 @@ def _energy_localization(cover_path: str, stego_path: str, energy_percentile: fl
     return float(localized) / float(int(np.sum(lsb_changed)))
 
 
-def _detectability_from_mse(mse: float) -> tuple[float, str]:
-    score = float(np.clip(np.log10(mse + 1e-16) + 16.0, 0.0, 1.0))
-    if score < 0.33:
-        risk = "LOW"
-    elif score < 0.66:
-        risk = "MEDIUM"
-    else:
-        risk = "HIGH"
-    return score, risk
-
-
 def build_analytics_summary(
     cover_path: str,
     stego_path: str,
@@ -124,7 +113,6 @@ def build_analytics_summary(
     snr_db = compute_snr_db(cover_path, stego_path)
     lsb_ber = compute_lsb_ber(cover_path, stego_path)
     mse = _compute_mse(cover_path, stego_path)
-    detectability_score, detectability_risk = _detectability_from_mse(mse)
 
     energy_percentile = float(session.get("energy_percentile", 0.0)) if session else 0.0
     encrypt = bool(session.get("encrypt", False)) if session else False
@@ -153,11 +141,8 @@ def build_analytics_summary(
         "original_name": session.get("original_name") if session else os.path.basename(cover_path),
         "snr_db": float(snr_db),
         "lsb_ber": float(lsb_ber),
-        "payload_ber": session.get("payload_ber") if session and session.get("payload_ber") is not None else None,
+        "payload_ber": float(session.get("payload_ber")) if session and session.get("payload_ber") is not None else 0.0,
         "mse": float(mse),
-        "detectability_score": detectability_score,
-        "detectability_risk": detectability_risk,
-        "detectability_source": "mse_proxy",
         "capacity_usage": capacity_usage,
         "energy_localization": energy_localization,
         "embedding_bits": payload_bits_estimate,

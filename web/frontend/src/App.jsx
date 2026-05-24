@@ -10,7 +10,7 @@ import VaultDashboardPage from './pages/VaultDashboardPage';
 import { StegoProvider } from './context/StegoContext';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import { Activity, Lock, Unlock, BarChart, Moon, Sun, Shield } from 'lucide-react';
+import { Activity, Lock, Unlock, Moon, Sun, Shield } from 'lucide-react';
 
 function App() {
   const [theme, setTheme] = useState('dark'); // Default to cinematic dark
@@ -41,7 +41,6 @@ function App() {
             <NavItem to="/" icon={<Lock size={18} strokeWidth={1.5}/>} label="Embed Payload" />
             <NavItem to="/extract" icon={<Unlock size={18} strokeWidth={1.5}/>} label="Extract Data" />
             <NavItem to="/visuals" icon={<Activity size={18} strokeWidth={1.5}/>} label="Visualizations" />
-            <NavItem to="/ml-detect" icon={<BarChart size={18} strokeWidth={1.5}/>} label="Detectability" />
           </nav>
 
           {/* Theme Toggle Footer */}
@@ -58,7 +57,7 @@ function App() {
 
         {/* Main Content Area */}
         <main className="flex-1 p-8 md:p-12 overflow-y-auto relative z-10">
-          <div className="max-w-[1400px] mx-auto">
+          <div className="max-w-350 mx-auto">
             <Routes>
               <Route path="/vault/setup" element={<VaultSetupPage />} />
               <Route path="/vault/login" element={<VaultLoginPage />} />

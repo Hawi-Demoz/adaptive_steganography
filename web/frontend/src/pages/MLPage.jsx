@@ -32,7 +32,7 @@ export default function MLPage() {
     } else {
       if (!coverFile || !stegoFile) {
         setLoading(false);
-        return alert("Both cover and stego files are required for detectability analysis.");
+        return alert("Both cover and stego files are required for analysis.");
       }
       try {
         const dataCov = new FormData();
@@ -76,11 +76,11 @@ export default function MLPage() {
     <div className="space-y-8 animate-in fade-in duration-700">
       <header className="mb-10">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-theme-border bg-theme-border/20 text-xs font-semibold text-theme-accent mb-4 uppercase tracking-wider">
-          <BarChart size={12} /> ML Detectability Analysis
+          <BarChart size={12} /> ML Analysis
         </div>
         <h2 className="text-4xl font-bold tracking-tight text-theme-text-main mb-3">Model Inference</h2>
         <p className="text-theme-text-muted max-w-2xl leading-relaxed">
-          Extract acoustic feature markers and analyze predicted detectability metrics against the original cover signal using real backend engine.
+          Extract acoustic feature markers and analyze predicted metrics against the original cover signal using the backend engine.
         </p>
       </header>
 
@@ -137,20 +137,20 @@ export default function MLPage() {
         </div>
 
         <div className="lg:col-span-7">
-          <div className="glass-panel p-6 rounded-2xl min-h-[400px]">
+          <div className="glass-panel p-6 rounded-2xl min-h-100">
             <h3 className="text-sm font-semibold flex items-center gap-2 mb-5 uppercase tracking-wider text-theme-text-muted">
               <Cpu size={18} className="text-theme-accent" /> Acoustic Metrics
             </h3>
 
             {!mlData && !loading && (
-              <div className="flex flex-col items-center justify-center h-[300px] text-theme-text-muted">
+              <div className="flex flex-col items-center justify-center h-75 text-theme-text-muted">
                 <BarChart size={32} className="mb-2 opacity-50" />
                 <p className="text-sm">Awaiting analysis target...</p>
               </div>
             )}
 
             {loading && (
-              <div className="flex flex-col items-center justify-center h-[300px] text-theme-text-muted">
+              <div className="flex flex-col items-center justify-center h-75 text-theme-text-muted">
                  <Loader2 className="animate-spin w-8 h-8 text-theme-accent mb-4" />
                  <span className="text-sm font-mono tracking-widest uppercase">Processing Features...</span>
               </div>
@@ -168,7 +168,7 @@ export default function MLPage() {
 
                 <div>
                    <h4 className="text-sm font-medium text-theme-text-main mb-4 border-b border-theme-border pb-2">Audio Feature Map</h4>
-                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-87.5 overflow-y-auto pr-2 custom-scrollbar">
                      {Object.entries(mlData.features).map(([key, val]) => (
                         <div key={key} className="flex justify-between items-center bg-theme-base/30 p-2.5 rounded-lg border border-theme-border/50">
                            <span className="text-xs font-medium text-theme-text-muted truncate mr-2" title={key}>{key}</span>

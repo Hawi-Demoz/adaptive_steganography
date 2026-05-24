@@ -73,14 +73,33 @@ def validate_wav_file(path):
         return False
 
 
+def _normalize_wav_filename(raw_name, fallback_prefix='stego_'):
+    safe_name = secure_filename(raw_name or '')
+    stem, ext = os.path.splitext(safe_name)
+    if not stem:
+        stem = f"{fallback_prefix}{uuid.uuid4().hex}"
+    if ext.lower() != '.wav':
+        ext = '.wav'
+    return f"{stem}{ext}"
+
+
+def _ensure_unique_filename(folder, filename):
+    stem, ext = os.path.splitext(filename)
+    candidate = filename
+    counter = 1
+    while os.path.exists(os.path.join(folder, candidate)):
+        candidate = f"{stem}_{counter}{ext}"
+        counter += 1
+    return candidate, os.path.join(folder, candidate)
+
+
 def safe_save(file_obj, folder, prefix=''):
     """Saves a file securely to the given folder using a unique UUID."""
     original_name = secure_filename(file_obj.filename or '')
     ext = os.path.splitext(original_name)[1].lower()
     if ext not in {'.wav'}:
         ext = '.wav'
-    name = f"{prefix}{uuid.uuid4().hex}{ext}"
-    path = os.path.join(folder, name)
+    name, path = _ensure_unique_filename(folder, f"{prefix}{uuid.uuid4().hex}{ext}")
     file_obj.save(path)
     return name, path
 
@@ -184,6 +203,65 @@ def api_session_files():
     return jsonify(_load_registry())
 
 
+@app.route('/api/session/files/<filename>', methods=['DELETE'])
+@login_required
+def api_delete_session_file(filename):
+    """Deletes a stego file from storage and removes its registry entry."""
+    safe = secure_filename(filename)
+    # Remove file from storage folders
+    for folder in (STEGO_FOLDER, UPLOAD_FOLDER):
+        p = os.path.join(folder, safe)
+        if os.path.exists(p):
+            try:
+                os.remove(p)
+            except Exception:
+                pass
+
+    # Remove from registry
+    registry = _load_registry()
+    new_registry = [e for e in registry if e.get('stego_filename') != safe]
+    _save_registry(new_registry)
+    return jsonify({"success": True})
+
+
+@app.route('/api/session/files/<filename>', methods=['PUT'])
+@login_required
+def api_rename_session_file(filename):
+    """Rename an existing stego file and update the session registry."""
+    data = request.get_json(silent=True) or request.form
+    new_name_raw = data.get('new_name') if isinstance(data, dict) else request.form.get('new_name')
+    if not new_name_raw:
+        return json_error("new_name is required for rename.")
+
+    safe_old = secure_filename(filename)
+    new_name = _normalize_wav_filename(new_name_raw)
+    # Ensure unique target name in stego folder
+    target_name, target_path = _ensure_unique_filename(STEGO_FOLDER, new_name)
+
+    # Locate existing file
+    old_path = os.path.join(STEGO_FOLDER, safe_old)
+    if not os.path.exists(old_path):
+        old_path = os.path.join(UPLOAD_FOLDER, safe_old)
+        if not os.path.exists(old_path):
+            return json_error("File not found.", 404)
+
+    try:
+        os.replace(old_path, target_path)
+    except Exception as e:
+        return json_error(f"Failed to rename file: {e}")
+
+    # Update registry
+    registry = _load_registry()
+    for entry in registry:
+        if entry.get('stego_filename') == safe_old:
+            entry['stego_filename'] = target_name
+            entry['requested_stego_filename'] = target_name
+            break
+    _save_registry(registry)
+
+    return jsonify({"success": True, "stego_filename": target_name})
+
+
 @app.route('/api/embed', methods=['POST'])
 def api_embed():
     """Embeds a payload into a staged cover WAV container using robust adaptive steganography."""
@@ -228,8 +306,9 @@ def api_embed():
             pass
         return json_error("Uploaded cover file is not a valid WAV file.")
 
-    stego_name = f"stego_{uuid.uuid4().hex}.wav"
-    stego_path = os.path.join(STEGO_FOLDER, stego_name)
+    requested_stego_name = request.form.get('stego_filename') or request.form.get('output_name') or ''
+    stego_name = _normalize_wav_filename(requested_stego_name)
+    stego_name, stego_path = _ensure_unique_filename(STEGO_FOLDER, stego_name)
 
     h = hashlib.sha256(password.encode('utf-8')).digest()
     key_bytes = h[:16]
@@ -290,7 +369,7 @@ def api_embed():
         payload_ber_val = None
 
     # Track in registry
-    entry_id = stego_name.replace('stego_', '').replace('.wav', '')
+    entry_id = os.path.splitext(stego_name)[0]
     
     payload_size = len(message_text.encode('utf-8'))
     
@@ -299,11 +378,13 @@ def api_embed():
         "timestamp": time.time(),
         "cover_filename": cover_name,
         "stego_filename": stego_name,
+        "requested_stego_filename": requested_stego_name,
         "original_cover_name": original_name,
         "energy_percentile": energy_percentile,
         "robust_repeat": robust_repeat,
         "encrypt": encrypt,
         "snr_db": float(snr_val),
+        "payload_ber": float(payload_ber_val) if payload_ber_val is not None else None,
         "payload_size": payload_size,
         "lsb_ber": float(lsb_ber_val),
         "password_protected": True
@@ -529,35 +610,6 @@ def api_viz_lsb_analysis():
 def api_viz_snr():
     from src.viz_dashboard import plot_dashboard_snr
     return _render_dashboard_plot(plot_dashboard_snr)
-
-
-@app.route('/api/visualize/detectability')
-@login_required
-def api_viz_detectability():
-    import matplotlib
-    matplotlib.use('Agg')
-
-    pair, err = _resolve_pair_from_request()
-    if err:
-        return err
-    cover_path, stego_path, session = pair
-
-    from analytics import _compute_mse, _detectability_from_mse
-    from src.viz_dashboard import plot_dashboard_detectability
-
-    mse = _compute_mse(cover_path, stego_path)
-    score, _ = _detectability_from_mse(mse)
-
-    out_name = f"detectability_{uuid.uuid4().hex}.png"
-    out_path = os.path.join(VISUALIZATION_FOLDER, out_name)
-    plot_dashboard_detectability(
-        cover_path,
-        stego_path,
-        save_path=out_path,
-        detectability_score=score,
-        score_source="mse_proxy",
-    )
-    return send_file(out_path, mimetype='image/png')
 
 
 @app.route('/api/visualize/<plot_type>')
