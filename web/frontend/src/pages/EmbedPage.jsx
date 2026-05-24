@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { useStego } from '../context/StegoContext';
+import { API_BASE_URL } from '../lib/api';
 import { UploadCloud, Settings, Shield, FileAudio, KeyRound, Type, SlidersHorizontal, ArrowRight } from 'lucide-react';
 
 export default function EmbedPage() {
@@ -49,13 +50,13 @@ export default function EmbedPage() {
     formData.append('robust_repeat', 1);
 
     try {
-      const response = await axios.post('http://localhost:5000/api/embed', formData);
+      const response = await axios.post(`${API_BASE_URL}/api/embed`, formData);
       
       const stegoData = response.data;
       await refreshGeneratedFiles();
 
       // Optionally auto-download immediately (or allow them to grab it from extracting later)
-      const downloadUrl = `http://localhost:5000/api/download/${stegoData.stego_filename}`;
+      const downloadUrl = `${API_BASE_URL}/api/download/${stegoData.stego_filename}`;
       const link = document.createElement('a');
       link.href = downloadUrl;
       const downloadName = stegoData.stego_filename || outputName.trim() || `stego_${file.name}`;

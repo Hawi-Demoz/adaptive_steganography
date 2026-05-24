@@ -19,6 +19,10 @@ sys.path.insert(0, str(BACKEND_DIR))
 
 app = Flask(__name__)
 app.secret_key = 'vault-super-secret-key-1234' # Required for session
+app.config.update(
+    SESSION_COOKIE_SAMESITE=os.environ.get('SESSION_COOKIE_SAMESITE', 'None'),
+    SESSION_COOKIE_SECURE=os.environ.get('SESSION_COOKIE_SECURE', '1') == '1',
+)
 
 # Enable CORS for frontend integration
 CORS(app, supports_credentials=True)
@@ -658,51 +662,6 @@ def api_visualize(plot_type):
         return jsonify({"error": "Invalid plot type"}), 400
         
     return send_file(out_path, mimetype='image/png')
-
-
-@app.route('/api/ml/features')
-@login_required
-def api_ml_features():
-    """Extracts raw acoustic features from audio carrier files."""
-    audio_name = request.args.get('audio')
-    if not audio_name:
-        return jsonify({"error": "Missing audio filename"}), 400
-        
-    audio_path = os.path.join(STEGO_FOLDER, audio_name)
-    if not os.path.exists(audio_path):
-        audio_path = os.path.join(UPLOAD_FOLDER, audio_name)
-        
-    if not os.path.exists(audio_path):
-        return jsonify({"error": "Audio file not found."}), 404
-        
-    from src.detectability_ml import extract_audio_features
-    feats = extract_audio_features(audio_path)
-    return jsonify(feats)
-
-
-@app.route('/api/ml/mse')
-@login_required
-def api_ml_mse():
-    """Computes Mean Squared Error divergence metrics."""
-    cover_name = request.args.get('cover')
-    stego_name = request.args.get('stego')
-    if not cover_name or not stego_name:
-        return jsonify({"error": "Missing arguments"}), 400
-        
-    cover_path = os.path.join(UPLOAD_FOLDER, cover_name)
-    if not os.path.exists(cover_path):
-        cover_path = os.path.join(STEGO_FOLDER, cover_name)
-        
-    stego_path = os.path.join(STEGO_FOLDER, stego_name)
-    if not os.path.exists(stego_path):
-        stego_path = os.path.join(UPLOAD_FOLDER, stego_name)
-        
-    if not os.path.exists(cover_path) or not os.path.exists(stego_path):
-        return jsonify({"error": "Audio files not found."}), 404
-        
-    from src.detectability_ml import compute_mse
-    mse = compute_mse(cover_path, stego_path)
-    return jsonify({"mse": mse})
 
 
 if __name__ == '__main__':

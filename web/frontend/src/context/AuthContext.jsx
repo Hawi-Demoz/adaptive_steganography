@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../lib/api';
 
 const AuthContext = createContext();
 
@@ -13,7 +14,7 @@ export function AuthProvider({ children }) {
 
   const checkStatus = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/auth/status');
+      const res = await axios.get(`${API_BASE_URL}/api/auth/status`);
       setIsSetupRequired(res.data.setupRequired);
       setIsAuthenticated(res.data.authenticated);
     } catch (err) {
@@ -28,7 +29,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (password) => {
-    const res = await axios.post('http://localhost:5000/api/auth/login', { password });
+    const res = await axios.post(`${API_BASE_URL}/api/auth/login`, { password });
     if (res.data.success) {
       setIsAuthenticated(true);
     }
@@ -36,7 +37,7 @@ export function AuthProvider({ children }) {
   };
 
   const setup = async (password) => {
-    const res = await axios.post('http://localhost:5000/api/auth/setup', { password });
+    const res = await axios.post(`${API_BASE_URL}/api/auth/setup`, { password });
     if (res.data.success) {
       setIsSetupRequired(false);
       setIsAuthenticated(true);
@@ -45,7 +46,7 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    await axios.post('http://localhost:5000/api/auth/logout');
+    await axios.post(`${API_BASE_URL}/api/auth/logout`);
     setIsAuthenticated(false);
   };
 

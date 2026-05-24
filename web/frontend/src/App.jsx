@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react
 import { useState, useEffect } from 'react';
 import EmbedPage from './pages/EmbedPage';
 import ExtractPage from './pages/ExtractPage';
-import MLPage from './pages/MLPage';
 import VisualsPage from './pages/VisualsPage';
 import VaultSetupPage from './pages/VaultSetupPage';
 import VaultLoginPage from './pages/VaultLoginPage';
@@ -65,7 +64,6 @@ function App() {
               <Route path="/" element={<EmbedPage />} />
               <Route path="/extract" element={<ProtectedRoute><ExtractPage /></ProtectedRoute>} />
               <Route path="/visuals" element={<ProtectedRoute><VisualsPage /></ProtectedRoute>} />
-              <Route path="/ml-detect" element={<ProtectedRoute><MLPage /></ProtectedRoute>} />
             </Routes>
           </div>
         </main>

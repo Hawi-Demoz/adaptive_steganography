@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useStego } from '../context/StegoContext';
+import { API_BASE_URL } from '../lib/api';
 import {
   Activity,
   BarChart3,
@@ -20,8 +21,6 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-
-const API = 'http://localhost:5000';
 
 const VIZ_CATALOG = [
   { id: 'waveform', label: 'Waveform', icon: Waves, endpoint: '/api/visualize/waveform', desc: 'Cover vs stego overlay with LSB hotspot zoom' },
@@ -117,14 +116,14 @@ export default function VisualsPage() {
               t: Date.now().toString(),
               energy_percentile: String(pair.energy ?? 0),
             }).toString();
-            const summaryRes = await axios.get(`${API}/api/analytics/summary?${qs}`);
+            const summaryRes = await axios.get(`${API_BASE_URL}/api/analytics/summary?${qs}`);
             setSummary(summaryRes.data);
 
             // Fetch visualization for the active tab
             setLoadingViz((prev) => ({ ...prev, [activeTab]: true }));
             const viz = VIZ_CATALOG.find((v) => v.id === activeTab);
             if (viz) {
-              const url = `${API}${viz.endpoint}?${qs}`;
+              const url = `${API_BASE_URL}${viz.endpoint}?${qs}`;
               const res = await axios.get(url, { responseType: 'blob' });
               const blobUrl = URL.createObjectURL(res.data);
               setImages((prev) => {
@@ -198,7 +197,7 @@ export default function VisualsPage() {
       }
       setResolvedPair({ cover: pair.cover, stego: pair.stego, energy: pair.energy ?? 0 });
       const qs = buildQuery(pair);
-      const summaryRes = await axios.get(`${API}/api/analytics/summary?${qs}`);
+      const summaryRes = await axios.get(`${API_BASE_URL}/api/analytics/summary?${qs}`);
       setSummary(summaryRes.data);
       await loadVisualization('waveform', pair);
     } catch (err) {
@@ -223,7 +222,7 @@ export default function VisualsPage() {
         t: Date.now().toString(),
         energy_percentile: String(energy),
       });
-      const url = `${API}${viz.endpoint}?${params}`;
+      const url = `${API_BASE_URL}${viz.endpoint}?${params}`;
       const res = await axios.get(url, { responseType: 'blob' });
       const blobUrl = URL.createObjectURL(res.data);
       setImages((prev) => {

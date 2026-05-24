@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useStego } from '../context/StegoContext';
 import { useAuth } from '../context/AuthContext';
 import { Shield, Download, Activity, Unlock, Lock, Clock, FileAudio, LogOut } from 'lucide-react';
+import { API_BASE_URL } from '../lib/api';
 
 export default function VaultDashboardPage() {
   const { generatedFiles, refreshGeneratedFiles } = useStego();
@@ -37,7 +38,7 @@ export default function VaultDashboardPage() {
   };
 
   const handleDownload = (filename) => {
-    window.location.href = `http://localhost:5000/api/download/${filename}`;
+    window.location.href = `${API_BASE_URL}/api/download/${filename}`;
   };
 
   const formatDate = (timestamp) => {
@@ -184,7 +185,7 @@ export default function VaultDashboardPage() {
                       const newName = window.prompt('Enter new filename (with or without .wav):', file.stego_filename);
                       if (!newName) return;
                       try {
-                        await fetch(`http://localhost:5000/api/session/files/${encodeURIComponent(file.stego_filename)}`, {
+                        await fetch(`${API_BASE_URL}/api/session/files/${encodeURIComponent(file.stego_filename)}`, {
                           method: 'PUT',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ new_name: newName }),
@@ -208,7 +209,7 @@ export default function VaultDashboardPage() {
                     onClick={async () => {
                       if (!window.confirm(`Delete ${file.stego_filename}? This cannot be undone.`)) return;
                       try {
-                        const res = await fetch(`http://localhost:5000/api/session/files/${encodeURIComponent(file.stego_filename)}`, {
+                        const res = await fetch(`${API_BASE_URL}/api/session/files/${encodeURIComponent(file.stego_filename)}`, {
                           method: 'DELETE',
                           credentials: 'include',
                         });
