@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useStego } from '../context/StegoContext';
-import { API_BASE_URL } from '../lib/api';
+import { API_BASE } from '../lib/api';
 import {
   Activity,
   BarChart3,
@@ -116,14 +116,14 @@ export default function VisualsPage() {
               t: Date.now().toString(),
               energy_percentile: String(pair.energy ?? 0),
             }).toString();
-            const summaryRes = await axios.get(`${API_BASE_URL}/api/analytics/summary?${qs}`);
+            const summaryRes = await axios.get(`${API_BASE}/api/analytics/summary?${qs}`);
             setSummary(summaryRes.data);
 
             // Fetch visualization for the active tab
             setLoadingViz((prev) => ({ ...prev, [activeTab]: true }));
             const viz = VIZ_CATALOG.find((v) => v.id === activeTab);
             if (viz) {
-              const url = `${API_BASE_URL}${viz.endpoint}?${qs}`;
+              const url = `${API_BASE}${viz.endpoint}?${qs}`;
               const res = await axios.get(url, { responseType: 'blob' });
               const blobUrl = URL.createObjectURL(res.data);
               setImages((prev) => {
@@ -166,8 +166,8 @@ export default function VisualsPage() {
     }
     if (!coverFile || !stegoFile) return null;
     const [covRes, stegRes] = await Promise.all([
-      axios.post(`${API}/api/upload`, (() => { const fd = new FormData(); fd.append('file', coverFile); return fd; })()),
-      axios.post(`${API}/api/upload`, (() => { const fd = new FormData(); fd.append('file', stegoFile); return fd; })()),
+      axios.post(`${API_BASE}/api/upload`, (() => { const fd = new FormData(); fd.append('file', coverFile); return fd; })()),
+      axios.post(`${API_BASE}/api/upload`, (() => { const fd = new FormData(); fd.append('file', stegoFile); return fd; })()),
     ]);
     return { cover: covRes.data.filename, stego: stegRes.data.filename, energy: 0 };
   }, [mode, sessionEntry, coverFile, stegoFile]);
@@ -197,7 +197,7 @@ export default function VisualsPage() {
       }
       setResolvedPair({ cover: pair.cover, stego: pair.stego, energy: pair.energy ?? 0 });
       const qs = buildQuery(pair);
-      const summaryRes = await axios.get(`${API_BASE_URL}/api/analytics/summary?${qs}`);
+      const summaryRes = await axios.get(`${API_BASE}/api/analytics/summary?${qs}`);
       setSummary(summaryRes.data);
       await loadVisualization('waveform', pair);
     } catch (err) {
@@ -222,7 +222,7 @@ export default function VisualsPage() {
         t: Date.now().toString(),
         energy_percentile: String(energy),
       });
-      const url = `${API_BASE_URL}${viz.endpoint}?${params}`;
+      const url = `${API_BASE}${viz.endpoint}?${params}`;
       const res = await axios.get(url, { responseType: 'blob' });
       const blobUrl = URL.createObjectURL(res.data);
       setImages((prev) => {

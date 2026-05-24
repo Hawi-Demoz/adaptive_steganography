@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
-import { API_BASE_URL } from '../lib/api';
+import { API_BASE } from '../lib/api';
 
 const StegoContext = createContext();
 
@@ -8,7 +8,7 @@ export function StegoProvider({ children }) {
   const [generatedFiles, setGeneratedFiles] = useState([]);
 
   const refreshGeneratedFiles = async () => {
-    const res = await axios.get(`${API_BASE_URL}/api/session/files`);
+    const res = await axios.get(`${API_BASE}/api/session/files`);
     if (Array.isArray(res.data)) {
       setGeneratedFiles(res.data);
     }

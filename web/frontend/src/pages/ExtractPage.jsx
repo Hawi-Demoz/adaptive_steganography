@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useStego } from '../context/StegoContext';
-import { API_BASE_URL } from '../lib/api';
+import { API_BASE } from '../lib/api';
 import { 
   UploadCloud, 
   FileAudio,  
@@ -150,7 +150,7 @@ export default function ExtractPage() {
     }
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/extract`, formData);
+      const response = await axios.post(`${API_BASE}/api/extract`, formData);
 
       if (response.data?.success) {
         if (response.data.message) {
