@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useStego } from '../context/StegoContext';
 import {
@@ -58,20 +59,97 @@ function Skeleton({ className = '' }) {
 }
 
 export default function VisualsPage() {
-  const { generatedFiles } = useStego();
-  const [mode, setMode] = useState('generated');
-  const [selectedStego, setSelectedStego] = useState('');
-  const [coverFile, setCoverFile] = useState(null);
-  const [stegoFile, setStegoFile] = useState(null);
-  const [activeTab, setActiveTab] = useState('waveform');
-  const [compareMode, setCompareMode] = useState(true);
-  const [summary, setSummary] = useState(null);
-  const [images, setImages] = useState({});
+  const location = useLocation();
+  const {
+    generatedFiles,
+    visualsMode: mode,
+    setVisualsMode: setMode,
+    visualsSelectedStego: selectedStego,
+    setVisualsSelectedStego: setSelectedStego,
+    visualsCoverFile: coverFile,
+    setVisualsCoverFile: setCoverFile,
+    visualsStegoFile: stegoFile,
+    setVisualsStegoFile: setStegoFile,
+    visualsActiveTab: activeTab,
+    setVisualsActiveTab: setActiveTab,
+    visualsCompareMode: compareMode,
+    setVisualsCompareMode: setCompareMode,
+    visualsSummary: summary,
+    setVisualsSummary: setSummary,
+    visualsImages: images,
+    setVisualsImages: setImages,
+    visualsResolvedPair: resolvedPair,
+    setVisualsResolvedPair: setResolvedPair,
+  } = useStego();
+
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [loadingViz, setLoadingViz] = useState({});
   const [error, setError] = useState(null);
   const [fullscreen, setFullscreen] = useState(null);
-  const [resolvedPair, setResolvedPair] = useState({ cover: '', stego: '' });
+
+  // Handle auto-analysis from location state (e.g., from Vault Dashboard)
+  useEffect(() => {
+    if (location.state?.selectedStego && generatedFiles.length > 0) {
+      const stateStego = location.state.selectedStego;
+      if (stateStego !== selectedStego || !summary) {
+        setMode('generated');
+        setSelectedStego(stateStego);
+
+        const runAutoAnalysis = async () => {
+          const entry = generatedFiles.find((f) => f.stego_filename === stateStego);
+          if (!entry) return;
+
+          setError(null);
+          setLoadingSummary(true);
+          setSummary(null);
+          setImages((prev) => {
+            Object.values(prev).forEach((url) => {
+              try { URL.revokeObjectURL(url); } catch (e) {}
+            });
+            return {};
+          });
+
+          const pair = {
+            cover: entry.cover_filename,
+            stego: entry.stego_filename,
+            energy: entry.energy_percentile,
+          };
+          setResolvedPair({ cover: pair.cover, stego: pair.stego, energy: pair.energy ?? 0 });
+
+          try {
+            const qs = new URLSearchParams({
+              cover: pair.cover,
+              stego: pair.stego,
+              t: Date.now().toString(),
+              energy_percentile: String(pair.energy ?? 0),
+            }).toString();
+            const summaryRes = await axios.get(`${API}/api/analytics/summary?${qs}`);
+            setSummary(summaryRes.data);
+
+            // Fetch visualization for the active tab
+            setLoadingViz((prev) => ({ ...prev, [activeTab]: true }));
+            const viz = VIZ_CATALOG.find((v) => v.id === activeTab);
+            if (viz) {
+              const url = `${API}${viz.endpoint}?${qs}`;
+              const res = await axios.get(url, { responseType: 'blob' });
+              const blobUrl = URL.createObjectURL(res.data);
+              setImages((prev) => {
+                if (prev[activeTab]) URL.revokeObjectURL(prev[activeTab]);
+                return { ...prev, [activeTab]: blobUrl };
+              });
+            }
+          } catch (err) {
+            setError(err.response?.data?.error || err.message || 'Analysis failed');
+          } finally {
+            setLoadingSummary(false);
+            setLoadingViz((prev) => ({ ...prev, [activeTab]: false }));
+          }
+        };
+
+        runAutoAnalysis();
+      }
+    }
+  }, [location.state, generatedFiles, selectedStego, summary, activeTab]);
 
   const sessionEntry = useMemo(
     () => generatedFiles.find((f) => f.stego_filename === selectedStego),
@@ -111,7 +189,12 @@ export default function VisualsPage() {
     setError(null);
     setLoadingSummary(true);
     setSummary(null);
-    setImages({});
+    setImages((prev) => {
+      Object.values(prev).forEach((url) => {
+        try { URL.revokeObjectURL(url); } catch (e) {}
+      });
+      return {};
+    });
     try {
       const pair = await resolvePair();
       if (!pair) {

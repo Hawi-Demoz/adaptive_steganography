@@ -10,6 +10,7 @@ from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.gridspec import GridSpec
 from matplotlib.patches import FancyBboxPatch
 from scipy.signal import spectrogram
@@ -17,19 +18,35 @@ from scipy.signal import spectrogram
 from .metrics import compute_sample_change_stats, compute_snr_db, compute_lsb_ber
 from .visualize import _compute_rms_per_frame, _ensure_dir, _read_wav_mono_int16
 
+# Custom cyber-themed colormaps matching the web UI
+cmap_cyber = LinearSegmentedColormap.from_list(
+    "cyber_spectrogram", ["#151515", "#083344", "#06B6D4", "#E2F1FF"]
+)
+cmap_cyber_diff = LinearSegmentedColormap.from_list(
+    "cyber_difference", ["#151515", "#581C87", "#BD53ED", "#F3E8FF"]
+)
+
 
 def _style_figure(fig, title: str, subtitle: str = ""):
-    fig.patch.set_facecolor("#0d1117")
+    fig.patch.set_facecolor("#0A0A0A")
     full = title if not subtitle else f"{title}\n{subtitle}"
-    fig.suptitle(full, color="#e6edf3", fontsize=13, fontweight="semibold", y=0.98)
+    fig.suptitle(full, color="#A8B8D0", fontsize=13, fontweight="semibold", y=0.96)
     for ax in fig.get_axes():
-        ax.set_facecolor("#161b22")
-        ax.tick_params(colors="#8b949e", labelsize=8)
+        ax.set_facecolor("#151515")
+        ax.tick_params(colors="#888888", labelsize=8, pad=4)
         for spine in ax.spines.values():
-            spine.set_color("#30363d")
-        ax.title.set_color("#58a6ff")
-        ax.xaxis.label.set_color("#8b949e")
-        ax.yaxis.label.set_color("#8b949e")
+            spine.set_color("#262626")
+            spine.set_linewidth(1.0)
+        ax.title.set_color("#F0F0F0")
+        ax.xaxis.label.set_color("#888888")
+        ax.yaxis.label.set_color("#888888")
+        # Ensure proper padding to avoid clipping
+        ax.xaxis.labelpad = 6
+        ax.yaxis.labelpad = 6
+    try:
+        fig.tight_layout(rect=[0, 0, 1, 0.91])
+    except Exception:
+        pass
 
 
 def plot_dashboard_waveform(
@@ -48,19 +65,20 @@ def plot_dashboard_waveform(
     lsb_changed = ((x[:n] ^ y[:n]) & 1) != 0
 
     fig = plt.figure(figsize=(14, 8), constrained_layout=True)
-    gs = GridSpec(3, 1, figure=fig, height_ratios=[2.2, 1.2, 1.0])
+    gs = GridSpec(2, 2, figure=fig, height_ratios=[1.1, 1.0], width_ratios=[1.2, 1.0])
 
-    ax_main = fig.add_subplot(gs[0])
-    ax_main.plot(idx, xf, color="#58a6ff", lw=0.9, alpha=0.85, label="Cover")
-    ax_main.plot(idx, yf, color="#f78166", lw=0.8, alpha=0.75, label="Stego")
+    # Subplot 1: Waveform Overlay
+    ax_main = fig.add_subplot(gs[0, 0])
+    ax_main.plot(idx, xf, color="#888888", lw=0.9, alpha=0.85, label="Cover")
+    ax_main.plot(idx, yf, color="#06B6D4", lw=0.8, alpha=0.75, label="Stego")
     if np.any(diff):
-        ax_main.scatter(idx[diff], yf[diff], s=6, c="#ffa657", alpha=0.55, label="Modified")
+        ax_main.scatter(idx[diff], yf[diff], s=6, c="#BD53ED", alpha=0.55, label="Modified")
     ax_main.set_title("Waveform Overlay")
     ax_main.set_ylabel("Amplitude")
-    ax_main.legend(loc="upper left", fontsize=8, facecolor="#161b22", edgecolor="#30363d")
+    ax_main.legend(loc="upper left", fontsize=8, facecolor="#151515", edgecolor="#262626")
 
-    from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-    ax_inset = inset_axes(ax_main, width="32%", height="38%", loc="upper right", borderpad=1)
+    # Subplot 2: Zoom Hotspot
+    ax_inset = fig.add_subplot(gs[0, 1])
     if np.any(lsb_changed):
         win = 400
         kernel = np.ones(win, dtype=np.float32)
@@ -69,25 +87,30 @@ def plot_dashboard_waveform(
         s = max(0, center - win // 2)
         e = min(n, s + win)
         sl = slice(s, e)
-        ax_inset.plot(idx[sl], xf[sl], color="#58a6ff", lw=1)
-        ax_inset.plot(idx[sl], yf[sl], color="#f78166", lw=1, alpha=0.85)
+        ax_inset.plot(idx[sl], xf[sl], color="#888888", lw=1.1, label="Cover")
+        ax_inset.plot(idx[sl], yf[sl], color="#06B6D4", lw=1.0, alpha=0.85, label="Stego")
         if np.any(lsb_changed[sl]):
-            ax_inset.scatter(idx[sl][lsb_changed[sl]], yf[sl][lsb_changed[sl]], s=10, c="#ffa657")
-    ax_inset.set_title("Zoom: LSB Hotspot", fontsize=8)
-    ax_inset.tick_params(labelsize=6)
+            ax_inset.scatter(idx[sl][lsb_changed[sl]], yf[sl][lsb_changed[sl]], s=12, c="#BD53ED", label="Flip")
+    ax_inset.set_title("Zoom: LSB Hotspot")
+    ax_inset.set_ylabel("Amplitude")
+    ax_inset.set_xlabel("Sample index")
 
-    ax_diff = fig.add_subplot(gs[1])
+    # Subplot 3: Sample Difference (LSB)
+    ax_diff = fig.add_subplot(gs[1, 0])
     diff_lsb = (yf - xf) * 32768.0
-    ax_diff.fill_between(idx, diff_lsb, 0, where=lsb_changed, color="#ffa657", alpha=0.35)
-    ax_diff.plot(idx, diff_lsb, color="#a371f7", lw=0.7)
+    ax_diff.fill_between(idx, diff_lsb, 0, where=lsb_changed, color="#BD53ED", alpha=0.2)
+    ax_diff.plot(idx, diff_lsb, color="#06B6D4", lw=0.7)
     ax_diff.set_ylim(-1.5, 1.5)
     ax_diff.set_title("Sample Difference (LSB units)")
     ax_diff.set_ylabel("Δ LSB")
+    ax_diff.set_xlabel("Sample index")
 
-    ax_hist = fig.add_subplot(gs[2])
-    ax_hist.hist(diff_lsb, bins=[-1.5, -0.5, 0.5, 1.5], color="#388bfd", edgecolor="#30363d")
+    # Subplot 4: Difference Histogram
+    ax_hist = fig.add_subplot(gs[1, 1])
+    ax_hist.hist(diff_lsb, bins=[-1.5, -0.5, 0.5, 1.5], color="#BD53ED", edgecolor="#262626", rwidth=0.7)
     ax_hist.set_title("Difference Histogram")
     ax_hist.set_xlabel("LSB delta")
+    ax_hist.set_ylabel("Count")
 
     stats = compute_sample_change_stats(original_wav, stego_wav)
     _style_figure(
@@ -133,7 +156,7 @@ def plot_dashboard_spectrogram(
     fig, axes = plt.subplots(1, 3, figsize=(16, 5), constrained_layout=True)
     titles = ["Cover Spectrogram", "Stego Spectrogram", "Difference Layer (Stego − Cover)"]
     data = [Sx_db, Sy_db, Sn_db]
-    cmaps = ["inferno", "inferno", "viridis"]
+    cmaps = [cmap_cyber, cmap_cyber, cmap_cyber_diff]
     vmins = [vmin, vmin, -90]
     vmaxs = [vmax, vmax, 0]
 
@@ -142,7 +165,10 @@ def plot_dashboard_spectrogram(
         ax.set_title(title)
         ax.set_xlabel("Time [s]")
         ax.set_ylabel("Frequency [Hz]")
-        fig.colorbar(im, ax=ax, shrink=0.85, label="dB")
+        cb = fig.colorbar(im, ax=ax, shrink=0.7, pad=0.03)
+        cb.ax.tick_params(labelsize=7, colors="#888888")
+        cb.set_label("dB", color="#888888", fontsize=8, labelpad=4)
+        cb.outline.set_edgecolor("#262626")
 
     _style_figure(
         fig,
@@ -174,15 +200,18 @@ def plot_dashboard_heatmap(
     time_axis = np.arange(mat.shape[0]) * (block / float(sr))
 
     fig, axes = plt.subplots(2, 1, figsize=(14, 7), constrained_layout=True, height_ratios=[3, 1])
-    im = axes[0].imshow(mat, aspect="auto", cmap="hot", interpolation="nearest", vmin=0, vmax=1)
+    im = axes[0].imshow(mat, aspect="auto", cmap=cmap_cyber_diff, interpolation="nearest", vmin=0, vmax=1)
     axes[0].set_title("LSB Modification Heatmap")
     axes[0].set_ylabel("Time block")
     axes[0].set_xlabel("Sample within block")
-    fig.colorbar(im, ax=axes[0], shrink=0.8, label="LSB flip")
+    cb = fig.colorbar(im, ax=axes[0], shrink=0.8, pad=0.03)
+    cb.ax.tick_params(labelsize=7, colors="#888888")
+    cb.set_label("LSB flip", color="#888888", fontsize=8, labelpad=4)
+    cb.outline.set_edgecolor("#262626")
 
     row_density = mat.mean(axis=1)
-    axes[1].fill_between(time_axis, row_density, color="#f78166", alpha=0.45)
-    axes[1].plot(time_axis, row_density, color="#ffa657", lw=1.2)
+    axes[1].fill_between(time_axis, row_density, color="#BD53ED", alpha=0.25)
+    axes[1].plot(time_axis, row_density, color="#06B6D4", lw=1.2)
     axes[1].set_title("Temporal LSB Modification Density")
     axes[1].set_xlabel("Time [s]")
     axes[1].set_ylabel("Flip rate")
@@ -233,24 +262,24 @@ def plot_dashboard_energy_profile(
 
     fig, axes = plt.subplots(3, 1, figsize=(14, 9), sharex=True, constrained_layout=True)
 
-    axes[0].plot(t, rms, color="#58a6ff", lw=1.2, label="RMS / frame")
+    axes[0].plot(t, rms, color="#A8B8D0", lw=1.2, label="RMS / frame")
     if energy_percentile > 0:
-        axes[0].axhline(float(np.percentile(rms, energy_percentile)), color="#ffa657", ls="--", lw=1.2,
+        axes[0].axhline(float(np.percentile(rms, energy_percentile)), color="#BD53ED", ls="--", lw=1.2,
                         label=f"{energy_percentile:.0f}th percentile threshold")
-    axes[0].fill_between(t, 0, rms.max() * 1.05, where=preferred, color="#238636", alpha=0.12, label="Preferred embed region")
+    axes[0].fill_between(t, 0, rms.max() * 1.05, where=preferred, color="#06B6D4", alpha=0.12, label="Preferred embed region")
     axes[0].set_title("RMS Energy Profile")
     axes[0].set_ylabel("RMS")
-    axes[0].legend(fontsize=8, facecolor="#161b22", edgecolor="#30363d")
+    axes[0].legend(fontsize=8, facecolor="#151515", edgecolor="#262626")
 
     axes[1].bar(t, np.maximum(0.15, preferred.astype(float)), width=(hop_size / float(sr)) * 0.9,
-                color=np.where(preferred, "#3fb950", "#484f58"), align="edge")
+                color=np.where(preferred, "#06B6D4", "#262626"), align="edge")
     axes[1].set_title("Energy-Adaptive Embedding Preference Map")
     axes[1].set_ylabel("Priority")
     axes[1].set_yticks([0, 1])
     axes[1].set_yticklabels(["Deprioritized", "Preferred"])
 
-    axes[2].plot(t, frame_lsb, color="#f78166", lw=1.1)
-    axes[2].fill_between(t, frame_lsb, color="#f78166", alpha=0.25)
+    axes[2].plot(t, frame_lsb, color="#BD53ED", lw=1.1)
+    axes[2].fill_between(t, frame_lsb, color="#BD53ED", alpha=0.2)
     axes[2].set_title("Observed LSB Modification Density per Frame")
     axes[2].set_xlabel("Time [s]")
     axes[2].set_ylabel("Flip rate")
@@ -288,29 +317,30 @@ def plot_dashboard_snr(
 
     ax_gauge = fig.add_subplot(gs[0, 0])
     ax_gauge.axis("off")
+    ax_gauge.set_box_aspect(0.6)
     quality = "Excellent" if snr_db >= 60 else "Strong" if snr_db >= 40 else "Moderate" if snr_db >= 20 else "Low"
-    color = "#3fb950" if snr_db >= 60 else "#58a6ff" if snr_db >= 40 else "#ffa657" if snr_db >= 20 else "#f85149"
+    color = "#06B6D4" if snr_db >= 60 else "#A8B8D0" if snr_db >= 40 else "#BD53ED" if snr_db >= 20 else "#F43F5E"
     box = FancyBboxPatch((0.08, 0.15), 0.84, 0.7, boxstyle="round,pad=0.03", linewidth=1.5,
-                         edgecolor=color, facecolor="#161b22")
+                         edgecolor=color, facecolor="#151515")
     ax_gauge.add_patch(box)
     ax_gauge.text(0.5, 0.62, f"{snr_db:.2f} dB", ha="center", va="center", fontsize=28, color=color, fontweight="bold")
-    ax_gauge.text(0.5, 0.35, f"Imperceptibility: {quality}", ha="center", va="center", fontsize=11, color="#8b949e")
+    ax_gauge.text(0.5, 0.35, f"Imperceptibility: {quality}", ha="center", va="center", fontsize=11, color="#888888")
     ax_gauge.set_xlim(0, 1)
     ax_gauge.set_ylim(0, 1)
 
     ax_sig = fig.add_subplot(gs[0, 1])
     idx = np.arange(min(3000, n))
-    ax_sig.plot(idx, xf[: idx.size], color="#58a6ff", lw=0.8, label="Cover signal")
+    ax_sig.plot(idx, xf[: idx.size], color="#888888", lw=0.8, label="Cover signal")
     ax_sig.set_title("Cover Signal (normalized)")
-    ax_sig.legend(fontsize=8, facecolor="#161b22", edgecolor="#30363d")
+    ax_sig.legend(fontsize=8, facecolor="#151515", edgecolor="#262626")
 
     ax_noise_hist = fig.add_subplot(gs[1, 0])
-    ax_noise_hist.hist(noise, bins=60, color="#a371f7", edgecolor="#30363d", alpha=0.85)
+    ax_noise_hist.hist(noise, bins=60, color="#BD53ED", edgecolor="#262626", alpha=0.85)
     ax_noise_hist.set_title("Steganographic Noise Distribution")
     ax_noise_hist.set_xlabel("Amplitude residual")
 
     ax_noise_time = fig.add_subplot(gs[1, 1])
-    ax_noise_time.plot(noise, color="#f78166", lw=0.6)
+    ax_noise_time.plot(noise, color="#BD53ED", lw=0.6)
     ax_noise_time.set_title("Distortion Residual (time domain)")
     ax_noise_time.set_xlabel("Sample")
 
@@ -363,26 +393,26 @@ def plot_dashboard_embedding_density(
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 8), constrained_layout=True)
 
-    axes[0, 0].scatter(positions / float(sr), np.ones_like(positions), s=1, c="#58a6ff", alpha=0.35)
+    axes[0, 0].scatter(positions / float(sr), np.ones_like(positions), s=1, c="#06B6D4", alpha=0.35)
     axes[0, 0].set_title("Payload Sample Positions (time axis)")
     axes[0, 0].set_xlabel("Time [s]")
     axes[0, 0].set_yticks([])
 
-    axes[0, 1].plot(t, frame_density, color="#ffa657", lw=1.2)
-    axes[0, 1].fill_between(t, frame_density, color="#f78166", alpha=0.25)
+    axes[0, 1].plot(t, frame_density, color="#06B6D4", lw=1.2)
+    axes[0, 1].fill_between(t, frame_density, color="#BD53ED", alpha=0.2)
     axes[0, 1].set_title("Embedding Density per Frame")
     axes[0, 1].set_xlabel("Time [s]")
 
     if energy_percentile > 0:
-        axes[1, 0].bar(t, frame_high_share, width=(hop_size / float(sr)) * 0.85, color="#3fb950", alpha=0.85)
+        axes[1, 0].bar(t, frame_high_share, width=(hop_size / float(sr)) * 0.85, color="#06B6D4", alpha=0.85)
         axes[1, 0].set_title("Concentration in High-Energy Frames")
     else:
-        axes[1, 0].hist(positions / float(sr), bins=80, color="#388bfd", edgecolor="#30363d")
+        axes[1, 0].hist(positions / float(sr), bins=80, color="#BD53ED", edgecolor="#262626")
         axes[1, 0].set_title("Temporal Clustering of LSB Changes")
     axes[1, 0].set_xlabel("Time [s]")
 
     # 2D density: energy score vs modification presence per frame
-    axes[1, 1].scatter(scores, frame_density, s=18, c=frame_density, cmap="magma", alpha=0.85, edgecolors="none")
+    axes[1, 1].scatter(scores, frame_density, s=18, c=frame_density, cmap=cmap_cyber, alpha=0.85, edgecolors="none")
     axes[1, 1].set_xlabel("Normalized frame energy")
     axes[1, 1].set_ylabel("LSB flip rate")
     axes[1, 1].set_title("Adaptive Clustering: Energy vs Modification")
@@ -424,21 +454,21 @@ def plot_dashboard_lsb_analysis(
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 8), constrained_layout=True)
 
-    axes[0, 0].imshow(mat, aspect="auto", cmap="Greys", interpolation="nearest", vmin=0, vmax=1)
+    axes[0, 0].imshow(mat, aspect="auto", cmap=cmap_cyber_diff, interpolation="nearest", vmin=0, vmax=1)
     axes[0, 0].set_title("LSB Bit Flip Map")
     axes[0, 0].set_ylabel("Block")
     axes[0, 0].set_xlabel("Sample in block")
 
-    axes[0, 1].plot(t, flip_rate, color="#58a6ff", lw=1.1)
-    axes[0, 1].fill_between(t, flip_rate, color="#388bfd", alpha=0.2)
+    axes[0, 1].plot(t, flip_rate, color="#06B6D4", lw=1.1)
+    axes[0, 1].fill_between(t, flip_rate, color="#06B6D4", alpha=0.15)
     axes[0, 1].set_title("LSB Flip Rate Over Time")
     axes[0, 1].set_xlabel("Time [s]")
 
-    axes[1, 0].bar(["0 → 1", "1 → 0"], [bit0_to_1, bit1_to_0], color=["#3fb950", "#f85149"], edgecolor="#30363d")
+    axes[1, 0].bar(["0 → 1", "1 → 0"], [bit0_to_1, bit1_to_0], color=["#06B6D4", "#BD53ED"], edgecolor="#262626")
     axes[1, 0].set_title("Directional LSB Transitions")
 
     axes[1, 1].hist(lsb_y[flipped.astype(bool)] if flipped.any() else lsb_y, bins=[-0.5, 0.5, 1.5],
-                    color="#a371f7", edgecolor="#30363d")
+                    color="#BD53ED", edgecolor="#262626", rwidth=0.7)
     axes[1, 1].set_title("Post-Embed LSB Value Distribution (changed samples)")
     axes[1, 1].set_xticks([0, 1])
 
@@ -478,33 +508,34 @@ def plot_dashboard_detectability(
         detectability_score = float(np.clip(np.log10(mse + 1e-16) + 16.0, 0.0, 1.0))
 
     if detectability_score < 0.33:
-        risk, risk_color = "LOW", "#3fb950"
+        risk, risk_color = "LOW", "#06B6D4"
     elif detectability_score < 0.66:
-        risk, risk_color = "MEDIUM", "#ffa657"
+        risk, risk_color = "MEDIUM", "#BD53ED"
     else:
-        risk, risk_color = "HIGH", "#f85149"
+        risk, risk_color = "HIGH", "#F43F5E"
 
     fig = plt.figure(figsize=(14, 7), constrained_layout=True)
     gs = GridSpec(2, 2, figure=fig)
 
     ax_gauge = fig.add_subplot(gs[0, 0])
     ax_gauge.axis("off")
+    ax_gauge.set_box_aspect(0.6)
     ax_gauge.add_patch(FancyBboxPatch((0.06, 0.12), 0.88, 0.76, boxstyle="round,pad=0.03",
-                                      linewidth=2, edgecolor=risk_color, facecolor="#161b22"))
+                                      linewidth=2, edgecolor=risk_color, facecolor="#151515"))
     ax_gauge.text(0.5, 0.68, f"{detectability_score:.3f}", ha="center", fontsize=26, color=risk_color, fontweight="bold")
     ax_gauge.text(0.5, 0.42, f"Risk: {risk}", ha="center", fontsize=14, color=risk_color)
-    ax_gauge.text(0.5, 0.22, f"Source: {score_source}", ha="center", fontsize=9, color="#8b949e")
+    ax_gauge.text(0.5, 0.22, f"Source: {score_source}", ha="center", fontsize=9, color="#888888")
     ax_gauge.set_xlim(0, 1)
     ax_gauge.set_ylim(0, 1)
 
     ax_mse = fig.add_subplot(gs[0, 1])
-    ax_mse.bar(["MSE"], [mse], color="#388bfd", edgecolor="#30363d")
+    ax_mse.bar(["MSE"], [mse], color="#06B6D4", edgecolor="#262626")
     ax_mse.set_title("Cover/Stego Mean Squared Error")
     ax_mse.ticklabel_format(axis="y", style="scientific", scilimits=(-2, 2))
 
     ax_res = fig.add_subplot(gs[1, :])
-    ax_res.plot(residual[: min(6000, n)], color="#f78166", lw=0.55)
-    ax_res.fill_between(np.arange(min(6000, n)), residual[: min(6000, n)], color="#f78166", alpha=0.15)
+    ax_res.plot(residual[: min(6000, n)], color="#BD53ED", lw=0.55)
+    ax_res.fill_between(np.arange(min(6000, n)), residual[: min(6000, n)], color="#BD53ED", alpha=0.15)
     ax_res.set_title("Residual Waveform (Stego − Cover)")
     ax_res.set_xlabel("Sample")
 

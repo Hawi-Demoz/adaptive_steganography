@@ -4,8 +4,13 @@ import EmbedPage from './pages/EmbedPage';
 import ExtractPage from './pages/ExtractPage';
 import MLPage from './pages/MLPage';
 import VisualsPage from './pages/VisualsPage';
+import VaultSetupPage from './pages/VaultSetupPage';
+import VaultLoginPage from './pages/VaultLoginPage';
+import VaultDashboardPage from './pages/VaultDashboardPage';
 import { StegoProvider } from './context/StegoContext';
-import { Activity, Lock, Unlock, BarChart, Moon, Sun } from 'lucide-react';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import { Activity, Lock, Unlock, BarChart, Moon, Sun, Shield } from 'lucide-react';
 
 function App() {
   const [theme, setTheme] = useState('dark'); // Default to cinematic dark
@@ -18,6 +23,7 @@ function App() {
   const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
 
   return (
+    <AuthProvider>
     <StegoProvider>
       <Router>
         <div className="min-h-screen flex bg-theme-base text-theme-text-main transition-colors duration-500 bg-cinematic">
@@ -31,6 +37,7 @@ function App() {
           </div>
           
           <nav className="flex flex-col gap-1 px-3 mt-4 flex-1">
+            <NavItem to="/vault" icon={<Shield size={18} strokeWidth={1.5}/>} label="Secure Vault" />
             <NavItem to="/" icon={<Lock size={18} strokeWidth={1.5}/>} label="Embed Payload" />
             <NavItem to="/extract" icon={<Unlock size={18} strokeWidth={1.5}/>} label="Extract Data" />
             <NavItem to="/visuals" icon={<Activity size={18} strokeWidth={1.5}/>} label="Visualizations" />
@@ -53,16 +60,20 @@ function App() {
         <main className="flex-1 p-8 md:p-12 overflow-y-auto relative z-10">
           <div className="max-w-[1400px] mx-auto">
             <Routes>
+              <Route path="/vault/setup" element={<VaultSetupPage />} />
+              <Route path="/vault/login" element={<VaultLoginPage />} />
+              <Route path="/vault" element={<ProtectedRoute><VaultDashboardPage /></ProtectedRoute>} />
               <Route path="/" element={<EmbedPage />} />
-              <Route path="/extract" element={<ExtractPage />} />
-              <Route path="/visuals" element={<VisualsPage />} />
-              <Route path="/ml-detect" element={<MLPage />} />
+              <Route path="/extract" element={<ProtectedRoute><ExtractPage /></ProtectedRoute>} />
+              <Route path="/visuals" element={<ProtectedRoute><VisualsPage /></ProtectedRoute>} />
+              <Route path="/ml-detect" element={<ProtectedRoute><MLPage /></ProtectedRoute>} />
             </Routes>
           </div>
         </main>
       </div>
       </Router>
-    </StegoProvider>
+      </StegoProvider>
+      </AuthProvider>
   );
 }
 

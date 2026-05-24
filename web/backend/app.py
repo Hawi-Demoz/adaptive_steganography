@@ -5,27 +5,32 @@ import hashlib
 import time
 import json
 from pathlib import Path
-from flask import Flask, request, jsonify, send_file, send_from_directory
+from flask import Flask, request, jsonify, send_file, send_from_directory, session
 from flask_cors import CORS
 import numpy as np
 import soundfile as sf
 from werkzeug.utils import secure_filename
-
-# Resolve system paths to load local python modules
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps# Resolve system paths to load local python modules
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 BACKEND_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT_DIR))
 sys.path.insert(0, str(BACKEND_DIR))
 
 app = Flask(__name__)
+app.secret_key = 'vault-super-secret-key-1234' # Required for session
+
 # Enable CORS for frontend integration
-CORS(app)
+CORS(app, supports_credentials=True)
 
 # Standardized folder structures inside workspace data/ folder
 UPLOAD_FOLDER = os.path.join(BACKEND_DIR, 'uploads')
 STEGO_FOLDER = os.path.join(BACKEND_DIR, 'generated')
 VISUALIZATION_FOLDER = os.path.join(ROOT_DIR, 'data', 'visualizations')
 SESSION_REGISTRY_FILE = os.path.join(STEGO_FOLDER, 'session_registry.json')
+AUTH_FILE = os.path.join(BACKEND_DIR, 'data', 'auth.json')
+
+os.makedirs(os.path.join(BACKEND_DIR, 'data'), exist_ok=True)
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(STEGO_FOLDER, exist_ok=True)
@@ -92,10 +97,75 @@ def handle_exception(e):
     return jsonify({"error": message}), code
 
 
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('authenticated'):
+            return jsonify({"error": "Authentication required. Please unlock the Vault."}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
 @app.route('/', methods=['GET'])
 def index():
     """Health status endpoint."""
     return jsonify({"status": "Flask API running"})
+
+@app.route('/api/auth/status', methods=['GET'])
+def api_auth_status():
+    """Check authentication status and if setup is required."""
+    setup_required = not os.path.exists(AUTH_FILE)
+    authenticated = session.get('authenticated', False)
+    return jsonify({
+        "setupRequired": setup_required,
+        "authenticated": authenticated
+    })
+
+@app.route('/api/auth/setup', methods=['POST'])
+def api_auth_setup():
+    """First-time setup for the Vault."""
+    if os.path.exists(AUTH_FILE):
+        return jsonify({"error": "Vault is already initialized."}), 400
+        
+    password = request.json.get('password')
+    if not password:
+        return jsonify({"error": "Password is required."}), 400
+        
+    hashed = generate_password_hash(password)
+    try:
+        with open(AUTH_FILE, 'w') as f:
+            json.dump({"password_hash": hashed}, f)
+        session['authenticated'] = True
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/auth/login', methods=['POST'])
+def api_auth_login():
+    """Login to unlock the Vault."""
+    if not os.path.exists(AUTH_FILE):
+        return jsonify({"error": "Vault is not initialized."}), 400
+        
+    password = request.json.get('password')
+    if not password:
+        return jsonify({"error": "Password is required."}), 400
+        
+    try:
+        with open(AUTH_FILE, 'r') as f:
+            data = json.load(f)
+        
+        if check_password_hash(data.get('password_hash', ''), password):
+            session['authenticated'] = True
+            return jsonify({"success": True})
+        else:
+            return jsonify({"error": "Invalid password."}), 401
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/auth/logout', methods=['POST'])
+def api_auth_logout():
+    """Lock the Vault."""
+    session.pop('authenticated', None)
+    return jsonify({"success": True})
 
 
 @app.route('/api/upload', methods=['POST'])
@@ -108,6 +178,7 @@ def api_upload():
 
 
 @app.route('/api/session/files', methods=['GET'])
+@login_required
 def api_session_files():
     """Returns the list of dynamically generated stego files from the server's session registry."""
     return jsonify(_load_registry())
@@ -247,6 +318,7 @@ def api_embed():
 
 
 @app.route('/api/extract', methods=['POST'])
+@login_required
 def api_extract():
     """Extracts message payload from a staged stego WAV container."""
     try:
@@ -349,6 +421,7 @@ def api_extract():
 
 
 @app.route('/api/download/<filename>')
+@login_required
 def api_download(filename):
     """Downloads a staged generated file."""
     if os.path.exists(os.path.join(STEGO_FOLDER, filename)):
@@ -399,6 +472,7 @@ def _render_dashboard_plot(plot_fn, plot_kwargs=None):
 
 
 @app.route('/api/analytics/summary')
+@login_required
 def api_analytics_summary():
     """Return real comparative metrics for cover/stego pair."""
     pair, err = _resolve_pair_from_request()
@@ -411,48 +485,56 @@ def api_analytics_summary():
 
 
 @app.route('/api/visualize/waveform')
+@login_required
 def api_viz_waveform():
     from src.viz_dashboard import plot_dashboard_waveform
     return _render_dashboard_plot(plot_dashboard_waveform)
 
 
 @app.route('/api/visualize/spectrogram')
+@login_required
 def api_viz_spectrogram():
     from src.viz_dashboard import plot_dashboard_spectrogram
     return _render_dashboard_plot(plot_dashboard_spectrogram)
 
 
 @app.route('/api/visualize/heatmap')
+@login_required
 def api_viz_heatmap():
     from src.viz_dashboard import plot_dashboard_heatmap
     return _render_dashboard_plot(plot_dashboard_heatmap)
 
 
 @app.route('/api/visualize/energy-profile')
+@login_required
 def api_viz_energy_profile():
     from src.viz_dashboard import plot_dashboard_energy_profile
     return _render_dashboard_plot(plot_dashboard_energy_profile)
 
 
 @app.route('/api/visualize/embedding-density')
+@login_required
 def api_viz_embedding_density():
     from src.viz_dashboard import plot_dashboard_embedding_density
     return _render_dashboard_plot(plot_dashboard_embedding_density)
 
 
 @app.route('/api/visualize/lsb-analysis')
+@login_required
 def api_viz_lsb_analysis():
     from src.viz_dashboard import plot_dashboard_lsb_analysis
     return _render_dashboard_plot(plot_dashboard_lsb_analysis)
 
 
 @app.route('/api/visualize/snr')
+@login_required
 def api_viz_snr():
     from src.viz_dashboard import plot_dashboard_snr
     return _render_dashboard_plot(plot_dashboard_snr)
 
 
 @app.route('/api/visualize/detectability')
+@login_required
 def api_viz_detectability():
     import matplotlib
     matplotlib.use('Agg')
@@ -481,6 +563,7 @@ def api_viz_detectability():
 
 
 @app.route('/api/visualize/<plot_type>')
+@login_required
 def api_visualize(plot_type):
     """Renders and serves non-blocking comparative signal analytics charts."""
     import matplotlib
@@ -528,6 +611,7 @@ def api_visualize(plot_type):
 
 
 @app.route('/api/ml/features')
+@login_required
 def api_ml_features():
     """Extracts raw acoustic features from audio carrier files."""
     audio_name = request.args.get('audio')
@@ -547,6 +631,7 @@ def api_ml_features():
 
 
 @app.route('/api/ml/mse')
+@login_required
 def api_ml_mse():
     """Computes Mean Squared Error divergence metrics."""
     cover_name = request.args.get('cover')

@@ -29,8 +29,42 @@ export function StegoProvider({ children }) {
     });
   };
 
+  const [visualsMode, setVisualsMode] = useState('generated');
+  const [visualsSelectedStego, setVisualsSelectedStego] = useState('');
+  const [visualsCoverFile, setVisualsCoverFile] = useState(null);
+  const [visualsStegoFile, setVisualsStegoFile] = useState(null);
+  const [visualsActiveTab, setVisualsActiveTab] = useState('waveform');
+  const [visualsCompareMode, setVisualsCompareMode] = useState(true);
+  const [visualsSummary, setVisualsSummary] = useState(null);
+  const [visualsImages, setVisualsImages] = useState({});
+  const [visualsResolvedPair, setVisualsResolvedPair] = useState({ cover: '', stego: '' });
+
   return (
-    <StegoContext.Provider value={{ generatedFiles, addGeneratedFile, refreshGeneratedFiles }}>
+    <StegoContext.Provider
+      value={{
+        generatedFiles,
+        addGeneratedFile,
+        refreshGeneratedFiles,
+        visualsMode,
+        setVisualsMode,
+        visualsSelectedStego,
+        setVisualsSelectedStego,
+        visualsCoverFile,
+        setVisualsCoverFile,
+        visualsStegoFile,
+        setVisualsStegoFile,
+        visualsActiveTab,
+        setVisualsActiveTab,
+        visualsCompareMode,
+        setVisualsCompareMode,
+        visualsSummary,
+        setVisualsSummary,
+        visualsImages,
+        setVisualsImages,
+        visualsResolvedPair,
+        setVisualsResolvedPair,
+      }}
+    >
       {children}
     </StegoContext.Provider>
   );
