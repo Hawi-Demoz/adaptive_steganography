@@ -267,7 +267,7 @@ export default function VisualsPage() {
         <div className="absolute inset-0 analytics-grid opacity-30 pointer-events-none" />
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-xs font-semibold text-cyan-400 mb-4 uppercase tracking-widest">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-theme-border bg-theme-border/20 text-xs font-semibold text-theme-accent mb-4 uppercase tracking-widest">
               <Activity size={12} /> Forensic Analytics
             </div>
             <h2 className="text-4xl md:text-5xl font-bold tracking-tight text-theme-text-main mb-3">
@@ -298,7 +298,7 @@ export default function VisualsPage() {
           <select
             value={selectedStego}
             onChange={(e) => setSelectedStego(e.target.value)}
-            className="w-full bg-theme-base border border-theme-border rounded-xl p-3 text-sm focus:ring-1 focus:ring-cyan-500/50 outline-none"
+            className="w-full bg-theme-base border border-theme-border rounded-xl p-3 text-sm focus:ring-1 focus:ring-theme-accent/50 outline-none"
           >
             <option value="" disabled>Select stego payload...</option>
             {generatedFiles.map((gf) => (
@@ -316,13 +316,13 @@ export default function VisualsPage() {
 
         <div className="flex flex-wrap items-center gap-4">
           <label className="flex items-center gap-2 text-sm text-theme-text-muted cursor-pointer">
-            <input type="checkbox" checked={compareMode} onChange={(e) => setCompareMode(e.target.checked)} className="rounded border-theme-border text-cyan-500 focus:ring-cyan-500" />
+            <input type="checkbox" checked={compareMode} onChange={(e) => setCompareMode(e.target.checked)} className="rounded border-theme-border text-theme-accent focus:ring-theme-accent" />
             Compare Cover vs Stego
           </label>
           <button
             onClick={runAnalysis}
             disabled={loadingSummary || (mode === 'generated' ? !selectedStego : !coverFile || !stegoFile)}
-            className="ml-auto px-6 py-3 rounded-xl bg-linear-to-r from-cyan-600/90 to-blue-600/90 text-white font-medium shadow-lg shadow-cyan-500/20 hover:opacity-90 disabled:opacity-40 flex items-center gap-2 transition-all"
+            className="ml-auto px-6 py-3 rounded-xl bg-theme-accent text-theme-base font-medium shadow-lg shadow-theme-accent/20 hover:opacity-90 disabled:opacity-40 flex items-center gap-2 transition-all"
           >
             {loadingSummary ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
             Run Forensic Analysis
@@ -371,7 +371,7 @@ export default function VisualsPage() {
                   onClick={() => handleTabChange(viz.id)}
                   title={viz.desc}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm border transition-all duration-300
-                    ${active ? 'border-cyan-500/50 bg-cyan-500/10 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.15)]' : 'border-theme-border text-theme-text-muted hover:border-cyan-500/30 hover:text-theme-text-main'}`}
+                    ${active ? 'border-theme-accent/50 bg-theme-accent/10 text-theme-accent shadow-[0_0_20px_rgba(0,255,255,0.08)]' : 'border-theme-border text-theme-text-muted hover:border-theme-accent/30 hover:text-theme-text-main'}`}
                 >
                   <Icon size={16} />
                   {viz.label}
@@ -400,7 +400,7 @@ export default function VisualsPage() {
             <div className="relative rounded-xl overflow-hidden border border-theme-border bg-black/40 min-h-90 flex items-center justify-center">
               {loadingViz[activeTab] && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-theme-base/60 backdrop-blur-sm z-10">
-                  <Loader2 className="animate-spin text-cyan-400" size={32} />
+                  <Loader2 className="animate-spin text-theme-accent" size={32} />
                   <span className="text-xs uppercase tracking-widest text-theme-text-muted">Rendering from backend...</span>
                 </div>
               )}
@@ -451,7 +451,7 @@ export default function VisualsPage() {
 
 function TabButton({ active, onClick, children }) {
   return (
-    <button onClick={onClick} className={`text-sm py-1 border-b-2 transition-colors ${active ? 'border-cyan-400 text-cyan-400' : 'border-transparent text-theme-text-muted'}`}>
+    <button onClick={onClick} className={`text-sm py-1 border-b-2 transition-colors ${active ? 'border-theme-accent text-theme-accent' : 'border-transparent text-theme-text-muted'}`}>
       {children}
     </button>
   );
@@ -459,7 +459,7 @@ function TabButton({ active, onClick, children }) {
 
 function Badge({ icon, label, accent }) {
   return (
-    <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border ${accent ? 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300' : 'border-theme-border bg-theme-border/20 text-theme-text-muted'}`}>
+    <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border ${accent ? 'border-theme-accent/40 bg-theme-accent/10 text-theme-accent' : 'border-theme-border bg-theme-border/20 text-theme-text-muted'}`}>
       {icon}{label}
     </span>
   );
@@ -486,7 +486,7 @@ function InfoCell({ label, value }) {
 
 function UploadBox({ label, file, onChange }) {
   return (
-    <label className="flex flex-col gap-2 p-4 border border-dashed border-theme-border rounded-xl cursor-pointer hover:border-cyan-500/40 transition-colors">
+    <label className="flex flex-col gap-2 p-4 border border-dashed border-theme-border rounded-xl cursor-pointer hover:border-theme-accent/40 transition-colors">
       <span className="text-xs text-theme-text-muted">{label}</span>
       <span className="text-sm truncate">{file ? file.name : 'Click to upload .wav'}</span>
       <input type="file" accept=".wav" className="hidden" onChange={(e) => e.target.files?.[0] && onChange(e.target.files[0])} />
@@ -496,7 +496,7 @@ function UploadBox({ label, file, onChange }) {
 
 function IconButton({ icon, label, onClick }) {
   return (
-    <button onClick={onClick} title={label} className="p-2 rounded-lg border border-theme-border hover:border-cyan-500/40 hover:bg-cyan-500/10 text-theme-text-muted hover:text-cyan-300 transition-all">
+    <button onClick={onClick} title={label} className="p-2 rounded-lg border border-theme-border hover:border-theme-accent/40 hover:bg-theme-accent/10 text-theme-text-muted hover:text-theme-accent transition-all">
       {icon}
     </button>
   );
@@ -507,7 +507,7 @@ function GalleryCard({ viz, image, loading, active, onSelect, onExpand, onDownlo
   return (
     <div
       className={`group rounded-2xl border overflow-hidden transition-all duration-300 cursor-pointer analytics-card
-        ${active ? 'border-cyan-500/50 ring-1 ring-cyan-500/30' : 'border-theme-border hover:border-cyan-500/30'}`}
+        ${active ? 'border-theme-accent/50 ring-1 ring-theme-accent/30' : 'border-theme-border hover:border-theme-accent/30'}`}
       onClick={onSelect}
     >
       <div className="aspect-video bg-black/50 relative flex items-center justify-center">

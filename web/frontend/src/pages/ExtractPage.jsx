@@ -22,7 +22,6 @@ function getSessionEmbedParams(fileEntry) {
   return {
     encrypt: fileEntry.encrypt ?? fileEntry.metrics?.encrypt ?? true,
     energy_percentile: fileEntry.energy_percentile ?? fileEntry.metrics?.energyPercentile ?? 0,
-    robust_repeat: fileEntry.robust_repeat ?? fileEntry.metrics?.robustRepeat ?? 1,
   };
 }
 
@@ -51,7 +50,6 @@ export default function ExtractPage() {
   // Advanced Manual Configs
   const [manualEncrypt, setManualEncrypt] = useState(true);
   const [manualAdaptivityLevel, setManualAdaptivityLevel] = useState('medium'); // low=0, medium=20, high=40
-  const [manualRobustRepeat, setManualRobustRepeat] = useState(1);
   const [manualParamsDetected, setManualParamsDetected] = useState(false);
 
   const [file, setFile] = useState(null);
@@ -86,7 +84,6 @@ export default function ExtractPage() {
     if (sessionParams) {
       setManualEncrypt(sessionParams.encrypt);
       setManualAdaptivityLevel(energyToAdaptivityLevel(sessionParams.energy_percentile));
-      setManualRobustRepeat(sessionParams.robust_repeat);
       setManualParamsDetected(true);
       return;
     }
@@ -127,7 +124,6 @@ export default function ExtractPage() {
 
     let encryptVal = 'true';
     let energyVal = '0.0';
-    let robustVal = '1';
 
     if (selectedFileMode === 'generated') {
       const sessionParams = getSessionEmbedParams(
@@ -136,18 +132,15 @@ export default function ExtractPage() {
       if (sessionParams) {
         encryptVal = sessionParams.encrypt ? 'true' : 'false';
         energyVal = String(sessionParams.energy_percentile);
-        robustVal = String(sessionParams.robust_repeat);
       }
     } else {
       encryptVal = manualEncrypt ? 'true' : 'false';
       const levelMap = { low: 0, medium: 20, high: 40 };
       energyVal = levelMap[manualAdaptivityLevel].toString();
-      robustVal = String(manualRobustRepeat);
     }
 
     formData.append('encrypt', encryptVal);
     formData.append('energy_percentile', energyVal);
-    formData.append('robust_repeat', robustVal);
 
     console.log("Selected stego:", selectedGeneratedFile);
     console.log("Uploaded file:", file);
@@ -239,7 +232,7 @@ export default function ExtractPage() {
             </div>
 
             {selectedFileMode === 'generated' ? (
-               <div className="flex flex-col space-y-3 min-h-[140px]">
+               <div className="flex flex-col space-y-3 min-h-35">
                  {generatedFiles.length === 0 ? (
                    <div className="text-sm text-theme-text-muted italic py-8 text-center flex-1">No session files generated yet.</div>
                  ) : (
@@ -261,7 +254,6 @@ export default function ExtractPage() {
                        <p><span className="font-semibold text-theme-text-main">Session embed settings:</span> auto-applied during extraction</p>
                        <p>Encryption: {selectedSessionParams.encrypt ? 'AES enabled' : 'Off'}</p>
                        <p>Adaptivity: {formatAdaptivityLevel(selectedSessionParams.energy_percentile)}</p>
-                       <p>Robust repeat: {selectedSessionParams.robust_repeat}</p>
                      </div>
                    )}
                    </>
@@ -269,7 +261,7 @@ export default function ExtractPage() {
                </div>
             ) : (
                <div 
-                 className={`flex flex-col items-center justify-center w-full min-h-[180px] border border-dashed rounded-xl cursor-pointer bg-theme-base/50 transition-all group shadow-inner
+                 className={`flex flex-col items-center justify-center w-full min-h-45 border border-dashed rounded-xl cursor-pointer bg-theme-base/50 transition-all group shadow-inner
                    ${file ? 'border-theme-accent' : 'border-theme-border hover:border-theme-accent hover:bg-theme-border/10'}`}
                  onDragOver={(e) => e.preventDefault()}
                  onDrop={(e) => {
@@ -308,7 +300,7 @@ export default function ExtractPage() {
               {selectedFileMode === 'upload' && (
                 <>
                   <div className="pt-4 border-t border-theme-border">
-                    <label className="text-[10px] uppercase tracking-[0.2em] text-theme-text-muted font-semibold mb-3 block flex items-center gap-2">
+                      <label className="text-[10px] uppercase tracking-[0.2em] text-theme-text-muted font-semibold mb-3 flex items-center gap-2">
                       <Settings className="w-3 h-3" />
                       Manual Configuration
                     </label>
@@ -349,8 +341,8 @@ export default function ExtractPage() {
                           Embed settings auto-detected from session registry for this file.
                         </p>
                       ) : (
-                        <p className="text-xs text-theme-text-muted">
-                          Must match the encryption and adaptivity level used during embedding.
+                          <p className="text-xs text-theme-text-muted">
+                            Must match the encryption and adaptivity level used during embedding.
                         </p>
                       )}
                     </div>
@@ -402,7 +394,7 @@ export default function ExtractPage() {
                   </div>
                 </div>
 
-                <div className={`w-full rounded-xl p-6 font-mono text-sm leading-relaxed border transition-colors duration-500 min-h-[100px]
+                <div className={`w-full rounded-xl p-6 font-mono text-sm leading-relaxed border transition-colors duration-500 min-h-25
                   ${status === 'VERIFIED' ? 'bg-[#0f1412] dark:bg-emerald-950/20 border-emerald-900/30 text-emerald-800 dark:text-emerald-100/90' : 'bg-[#181212] dark:bg-red-950/20 border-red-900/30 text-red-800 dark:text-red-100/80'}`}>
                   {extractedData?.text || 'No data recovered.'}
                 </div>
