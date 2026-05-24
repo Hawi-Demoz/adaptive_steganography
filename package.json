@@ -6,4 +6,7 @@
     "build": "cd web/frontend && npm ci && npm run build",
     "dev": "cd web/frontend && npm install && npm run dev"
   }
+  ,"engines": {
+    "node": ">=18"
+  }
 }
