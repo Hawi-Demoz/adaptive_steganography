@@ -196,5 +196,14 @@
     "energy_percentile": 40.0,
     "encrypt": true,
     "robust_repeat": 1
+  },
+  {
+    "stego_filename": "stego_0b92f4e05e8545139c5e6b1f948adf25.wav",
+    "cover_filename": "cover_7e9c2d17d5254537acc3294cf7476fcb.wav",
+    "original_name": "855186__looplicator__90-bpm-industrial-ambient-loop-16568-wav.wav",
+    "timestamp": 1779626827.3617034,
+    "energy_percentile": 40.0,
+    "encrypt": true,
+    "robust_repeat": 1
   }
 ]

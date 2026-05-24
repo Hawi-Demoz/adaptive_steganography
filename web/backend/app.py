@@ -68,9 +68,9 @@ def parse_bool(value, default=False):
 def validate_wav_file(path):
     try:
         info = sf.info(path)
+        return info.frames > 0
     except Exception:
         return False
-    return info.format == 'WAV'
 
 
 def safe_save(file_obj, folder, prefix=''):
@@ -290,31 +290,29 @@ def api_embed():
         payload_ber_val = None
 
     # Track in registry
+    entry_id = stego_name.replace('stego_', '').replace('.wav', '')
+    
+    payload_size = len(message_text.encode('utf-8'))
+    
     entry = {
-        "stego_filename": stego_name,
-        "cover_filename": cover_name,
-        "original_name": original_name,
+        "id": entry_id,
         "timestamp": time.time(),
+        "cover_filename": cover_name,
+        "stego_filename": stego_name,
+        "original_cover_name": original_name,
         "energy_percentile": energy_percentile,
+        "robust_repeat": robust_repeat,
         "encrypt": encrypt,
-        "robust_repeat": robust_repeat
+        "snr_db": float(snr_val),
+        "payload_size": payload_size,
+        "lsb_ber": float(lsb_ber_val),
+        "password_protected": True
     }
     registry = _load_registry()
     registry.append(entry)
     _save_registry(registry)
 
-    return jsonify({
-        "stego_filename": stego_name,
-        "cover_filename": cover_name,
-        "original_name": original_name,
-        "timestamp": time.time(),
-        "energy_percentile": energy_percentile,
-        "encrypt": encrypt,
-        "robust_repeat": robust_repeat,
-        "snr_db": float(snr_val),
-        "lsb_ber": float(lsb_ber_val),
-        "payload_ber": None if payload_ber_val is None else float(payload_ber_val),
-    })
+    return jsonify(entry)
 
 
 @app.route('/api/extract', methods=['POST'])

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStego } from '../context/StegoContext';
 import { useAuth } from '../context/AuthContext';
@@ -8,6 +8,14 @@ export default function VaultDashboardPage() {
   const { generatedFiles, refreshGeneratedFiles } = useStego();
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const [expandedFiles, setExpandedFiles] = useState({});
+
+  const toggleExpand = (stego_filename) => {
+    setExpandedFiles(prev => ({
+      ...prev,
+      [stego_filename]: !prev[stego_filename]
+    }));
+  };
 
   useEffect(() => {
     refreshGeneratedFiles();
@@ -80,40 +88,80 @@ export default function VaultDashboardPage() {
                 </div>
 
                 <div className="mb-4">
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
                     <span className="text-xs font-mono text-theme-accent bg-theme-accent/10 px-2 py-0.5 rounded border border-theme-accent/20">
-                      ID: {file.stego_filename.split('_')[1]?.substring(0, 8) || 'unknown'}
+                      ID: {file.id || file.stego_filename.split('_')[1]?.substring(0, 8) || 'unknown'}
                     </span>
                     {file.encrypt && (
-                      <span className="text-xs font-mono text-green-400 flex items-center gap-1">
+                      <span className="text-[10px] font-mono text-green-400 flex items-center gap-1 bg-green-400/10 px-1.5 py-0.5 rounded border border-green-400/20">
                         <Lock size={10} /> ENCRYPTED
                       </span>
                     )}
+                    {file.robust_repeat > 1 && (
+                      <span className="text-[10px] font-mono text-purple-400 flex items-center gap-1 bg-purple-400/10 px-1.5 py-0.5 rounded border border-purple-400/20">
+                        ROBUST
+                      </span>
+                    )}
+                    {file.energy_percentile > 0 && (
+                      <span className="text-[10px] font-mono text-blue-400 flex items-center gap-1 bg-blue-400/10 px-1.5 py-0.5 rounded border border-blue-400/20">
+                        ADAPTIVE
+                      </span>
+                    )}
                   </div>
-                  <h3 className="font-medium text-theme-text-main truncate" title={file.stego_filename}>
-                    {file.stego_filename}
-                  </h3>
-                  <div className="flex items-center gap-1 text-xs text-theme-text-muted mt-2">
+                  
+                  <div 
+                    className="cursor-pointer group/title flex items-center justify-between mt-2 mb-1" 
+                    onClick={() => toggleExpand(file.stego_filename)}
+                  >
+                    <h3 className="font-medium text-theme-text-main truncate group-hover/title:text-theme-accent transition-colors" title={file.stego_filename}>
+                      {file.stego_filename}
+                    </h3>
+                    <span className="text-[10px] text-theme-accent/70 group-hover/title:text-theme-accent px-2">
+                      {expandedFiles[file.stego_filename] ? '▲' : '▼'}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center gap-1 text-xs text-theme-text-muted">
                     <Clock size={12} /> {formatDate(file.timestamp)}
                   </div>
                 </div>
 
-                <div className="space-y-1 mb-4 text-xs font-mono">
-                  <div className="flex justify-between border-b border-theme-border/50 pb-1">
-                    <span className="text-theme-text-muted">Carrier</span>
-                    <span className="truncate max-w-[120px]" title={file.original_name || file.cover_filename}>
-                      {file.original_name || file.cover_filename}
-                    </span>
+                {expandedFiles[file.stego_filename] && (
+                  <div className="space-y-1 mb-4 text-xs font-mono animate-in fade-in slide-in-from-top-2">
+                    <div className="flex justify-between border-b border-theme-border/50 pb-1">
+                      <span className="text-theme-text-muted">Carrier</span>
+                      <span className="truncate max-w-[120px]" title={file.original_cover_name || file.original_name || file.cover_filename}>
+                        {file.original_cover_name || file.original_name || file.cover_filename}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-b border-theme-border/50 pb-1">
+                      <span className="text-theme-text-muted">Stego Output</span>
+                      <span className="truncate max-w-[120px]" title={file.stego_filename}>
+                        {file.stego_filename}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-b border-theme-border/50 pb-1">
+                      <span className="text-theme-text-muted">Energy</span>
+                      <span>{file.energy_percentile}%</span>
+                    </div>
+                    <div className="flex justify-between border-b border-theme-border/50 pb-1">
+                      <span className="text-theme-text-muted">Robustness</span>
+                      <span>{file.robust_repeat}x</span>
+                    </div>
+                    <div className="flex justify-between border-b border-theme-border/50 pb-1">
+                      <span className="text-theme-text-muted">Encryption</span>
+                      <span className={file.encrypt ? "text-green-400" : "text-theme-text-muted"}>{file.encrypt ? 'Enabled' : 'Disabled'}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-theme-border/50 pb-1">
+                      <span className="text-theme-text-muted">Payload Size</span>
+                      <span>{file.payload_size ? `${file.payload_size} bytes` : 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between pb-1 mt-1">
+                      <span className="text-theme-text-muted">SNR</span>
+                      <span className="text-theme-accent font-semibold">{file.snr_db ? `${file.snr_db.toFixed(1)} dB` : 'N/A'}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between border-b border-theme-border/50 pb-1">
-                    <span className="text-theme-text-muted">Energy</span>
-                    <span>{file.energy_percentile}%</span>
-                  </div>
-                  <div className="flex justify-between pb-1">
-                    <span className="text-theme-text-muted">Robustness</span>
-                    <span>{file.robust_repeat}x</span>
-                  </div>
-                </div>
+                )}
 
                 <div className="grid grid-cols-3 gap-2 mt-auto">
                   <button 

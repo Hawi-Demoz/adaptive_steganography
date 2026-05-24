@@ -10,11 +10,15 @@ export default function EmbedPage() {
   const [password, setPassword] = useState('');
   const [encrypt, setEncrypt] = useState(true);
   const [adaptivityLevel, setAdaptivityLevel] = useState('medium'); // 'low', 'medium', 'high'
+  const [outputName, setOutputName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
 
   const handleFileChange = (e) => {
-    if (e.target.files[0]) setFile(e.target.files[0]);
+    if (e.target.files[0]) {
+      setFile(e.target.files[0]);
+      setOutputName(`stego_${e.target.files[0].name}`);
+    }
   };
 
   const handleEmbed = async () => {
@@ -43,7 +47,8 @@ export default function EmbedPage() {
       const downloadUrl = `http://localhost:5000/api/download/${stegoData.stego_filename}`;
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.setAttribute('download', `stego_${file.name}`);
+      const downloadName = outputName.trim() || `stego_${file.name}`;
+      link.setAttribute('download', downloadName.endsWith('.wav') ? downloadName : `${downloadName}.wav`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -74,7 +79,18 @@ export default function EmbedPage() {
         {/* Left Column: Data Input */}
         <div className="lg:col-span-7 space-y-6">
           <SectionCard title="Acoustic Carrier" icon={<FileAudio className="text-theme-accent" size={18} />}>
-            <label className="flex flex-col items-center justify-center w-full h-36 border border-dashed border-theme-border hover:border-theme-accent rounded-xl cursor-pointer bg-theme-base/50 transition-all hover:bg-theme-border/10 group shadow-inner">
+            <label 
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                  const droppedFile = e.dataTransfer.files[0];
+                  setFile(droppedFile);
+                  setOutputName(`stego_${droppedFile.name}`);
+                }
+              }}
+              className="flex flex-col items-center justify-center w-full h-36 border border-dashed border-theme-border hover:border-theme-accent rounded-xl cursor-pointer bg-theme-base/50 transition-all hover:bg-theme-border/10 group shadow-inner"
+            >
               <div className="flex flex-col items-center justify-center pt-5 pb-6">
                 <UploadCloud size={32} strokeWidth={1.5} className="text-theme-text-muted mb-3 group-hover:text-theme-accent transition-colors" />
                 <p className="text-sm font-medium text-theme-text-main">
@@ -104,6 +120,16 @@ export default function EmbedPage() {
                   className="w-full bg-theme-base border border-theme-border rounded-xl pl-10 p-3 text-sm text-theme-text-main placeholder:text-theme-text-muted focus:outline-none focus:ring-1 focus:ring-theme-accent focus:border-theme-accent transition-all shadow-inner"
                   placeholder="Cryptographic Seed / Key"
                   value={password} onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+
+              <div className="relative">
+                <FileAudio className="absolute left-3 top-1/2 -translate-y-1/2 text-theme-text-muted" size={16} />
+                <input 
+                  type="text" 
+                  className="w-full bg-theme-base border border-theme-border rounded-xl pl-10 p-3 text-sm text-theme-text-main placeholder:text-theme-text-muted focus:outline-none focus:ring-1 focus:ring-theme-accent focus:border-theme-accent transition-all shadow-inner"
+                  placeholder="Output Filename (Optional)"
+                  value={outputName} onChange={(e) => setOutputName(e.target.value)}
                 />
               </div>
             </div>

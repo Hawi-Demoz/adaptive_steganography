@@ -30,7 +30,7 @@ cmap_cyber_diff = LinearSegmentedColormap.from_list(
 def _style_figure(fig, title: str, subtitle: str = ""):
     fig.patch.set_facecolor("#0A0A0A")
     full = title if not subtitle else f"{title}\n{subtitle}"
-    fig.suptitle(full, color="#A8B8D0", fontsize=13, fontweight="semibold", y=0.96)
+    fig.suptitle(full, color="#A8B8D0", fontsize=13, fontweight="semibold")
     for ax in fig.get_axes():
         ax.set_facecolor("#151515")
         ax.tick_params(colors="#888888", labelsize=8, pad=4)
@@ -43,10 +43,6 @@ def _style_figure(fig, title: str, subtitle: str = ""):
         # Ensure proper padding to avoid clipping
         ax.xaxis.labelpad = 6
         ax.yaxis.labelpad = 6
-    try:
-        fig.tight_layout(rect=[0, 0, 1, 0.91])
-    except Exception:
-        pass
 
 
 def plot_dashboard_waveform(
