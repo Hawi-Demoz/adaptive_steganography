@@ -1,2 +1,8 @@
 Flask==3.0.0
 flask-cors==4.0.0
+numpy
+scipy
+matplotlib
+soundfile
+pycryptodome
+gunicorn

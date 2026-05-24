@@ -129,11 +129,8 @@ def build_analytics_summary(
     payload_bits_estimate = int(lsb_changed)
     payload_bytes_estimate = payload_bits_estimate // 8
 
-    try:
-        from src.detectability_ml import extract_audio_features
-        audio_features = extract_audio_features(stego_path)
-    except Exception:
-        audio_features = None
+    # ML/detectability removed — leave audio features empty
+    audio_features = None
 
     return {
         "stego_filename": os.path.basename(stego_path),

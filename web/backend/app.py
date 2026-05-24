@@ -18,24 +18,30 @@ sys.path.insert(0, str(ROOT_DIR))
 sys.path.insert(0, str(BACKEND_DIR))
 
 app = Flask(__name__)
-app.secret_key = 'vault-super-secret-key-1234' # Required for session
+# Secret should be provided via env for production
+app.secret_key = os.environ.get('SECRET_KEY', 'vault-super-secret-key-1234')
 app.config.update(
     SESSION_COOKIE_SAMESITE=os.environ.get('SESSION_COOKIE_SAMESITE', 'None'),
     SESSION_COOKIE_SECURE=os.environ.get('SESSION_COOKIE_SECURE', '1') == '1',
 )
 
-# Enable CORS for frontend integration
-CORS(app, supports_credentials=True)
+# Configure CORS. If FRONTEND_URL is provided, restrict origins to it, otherwise allow all for convenience.
+FRONTEND_URL = os.environ.get('FRONTEND_URL', '*')
+try:
+    CORS(app, resources={r"/api/*": {"origins": FRONTEND_URL}}, supports_credentials=True)
+except Exception:
+    # Fallback to permissive CORS if configuration is not available
+    CORS(app, supports_credentials=True)
 
-# Standardized folder structures inside workspace data/ folder
-UPLOAD_FOLDER = os.path.join(BACKEND_DIR, 'uploads')
-STEGO_FOLDER = os.path.join(BACKEND_DIR, 'generated')
-VISUALIZATION_FOLDER = os.path.join(ROOT_DIR, 'data', 'visualizations')
+# Standardized folder structures; allow override from environment for Render or S3 adapters
+UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(BACKEND_DIR, 'uploads'))
+STEGO_FOLDER = os.environ.get('GENERATED_FOLDER', os.path.join(BACKEND_DIR, 'generated'))
+VISUALIZATION_FOLDER = os.environ.get('VISUALIZATION_FOLDER', os.path.join(ROOT_DIR, 'data', 'visualizations'))
 SESSION_REGISTRY_FILE = os.path.join(STEGO_FOLDER, 'session_registry.json')
 AUTH_FILE = os.path.join(BACKEND_DIR, 'data', 'auth.json')
 
+# Ensure required directories exist on startup
 os.makedirs(os.path.join(BACKEND_DIR, 'data'), exist_ok=True)
-
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(STEGO_FOLDER, exist_ok=True)
 os.makedirs(VISUALIZATION_FOLDER, exist_ok=True)
@@ -507,9 +513,14 @@ def api_extract():
 @login_required
 def api_download(filename):
     """Downloads a staged generated file."""
-    if os.path.exists(os.path.join(STEGO_FOLDER, filename)):
-        return send_from_directory(STEGO_FOLDER, filename, as_attachment=True)
-    return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
+    safe = secure_filename(filename)
+    stego_p = os.path.join(STEGO_FOLDER, safe)
+    upload_p = os.path.join(UPLOAD_FOLDER, safe)
+    if os.path.exists(stego_p):
+        return send_from_directory(STEGO_FOLDER, safe, as_attachment=True)
+    if os.path.exists(upload_p):
+        return send_from_directory(UPLOAD_FOLDER, safe, as_attachment=True)
+    return jsonify({"error": "File not found."}), 404
 
 
 def _resolve_pair_from_request():
@@ -664,5 +675,19 @@ def api_visualize(plot_type):
     return send_file(out_path, mimetype='image/png')
 
 
+# JSON error handlers for common HTTP errors
+@app.errorhandler(404)
+def not_found_error(e):
+    return jsonify({"error": "Resource not found"}), 404
+
+
+@app.errorhandler(400)
+def bad_request_error(e):
+    return jsonify({"error": "Bad request"}), 400
+
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    import os
+    port = int(os.environ.get('PORT', 5000))
+    host = os.environ.get('HOST', '0.0.0.0')
+    app.run(host=host, port=port)
