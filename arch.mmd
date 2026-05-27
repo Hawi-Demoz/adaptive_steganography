@@ -1,0 +1,70 @@
+flowchart LR
+  %% System Architecture for Adaptive Steganography
+  subgraph FE ["Frontend (Vite / React)"]
+    FE_APP["Web UI\nEmbed / Extract / Visuals / Vault\nUses: axios, VITE_API_URL"]
+  end
+
+  subgraph PLATFRONT["Frontend Host"]
+    VERCEL["Vercel / Static CDN"]
+  end
+
+  subgraph BE ["Backend (Flask API)"]
+    API["Flask API\nEndpoints: /api/embed /api/extract /api/upload\n/api/visualize/* /api/analytics /api/session/files /api/download /api/auth"]
+    WORKER["Embed / Extract\nCore libs: soundfile, numpy, pycryptodome"]
+  end
+
+  subgraph HOSTBE["Backend Host"]
+    RENDER["Render / Gunicorn"]
+  end
+
+  subgraph STORE ["Storage & Registry"]
+    UPLOADS["uploads/ (staged files)"]
+    GENERATED["generated/ (stego files)"]
+    VISUALS["visualizations/ (PNG plots)"]
+    REGISTRY["session_registry.json (metadata)"]
+    S3["Optional: S3 / Object Storage"]
+  end
+
+  %% Frontend -> Backend
+  FE_APP -- "POST /api/upload (cover/stego)" --> API
+  FE_APP -- "POST /api/embed (form + params)" --> API
+  FE_APP -- "POST /api/extract (file or filename + key)" --> API
+  FE_APP -- "GET /api/visualize/*?cover=&stego=&energy=.." --> API
+  FE_APP -- "GET /api/analytics/summary?cover=&stego=" --> API
+  FE_APP -- "GET /api/session/files" --> API
+  FE_APP -- "PUT/DELETE /api/session/files/:file" --> API
+  FE_APP -- "GET /api/download/:file" --> API
+  FE_APP -- "POST /api/auth/*" --> API
+
+  %% Backend internal flow
+  API --> WORKER
+  WORKER --> UPLOADS
+  WORKER --> GENERATED
+  WORKER --> VISUALS
+  API --> REGISTRY
+  API -- "persist / read" --> REGISTRY
+
+  %% Optional external storage
+  GENERATED -- "sync/backup" --> S3
+  UPLOADS -- "optional offload" --> S3
+  VISUALS -- "optional offload" --> S3
+
+  %% Deployment links
+  FE_APP --> VERCEL
+  API --> RENDER
+
+  %% Env / config
+  note_env_frontend["Env: VITE_API_URL (backend base)"]
+  note_env_backend["Env: SECRET_KEY, FRONTEND_URL, UPLOAD_FOLDER,\nGENERATED_FOLDER, VISUALIZATION_FOLDER"]
+  VERCEL -.-> note_env_frontend
+  RENDER -.-> note_env_backend
+
+  classDef note fill:#f9f,stroke:#333,stroke-width:0.5,font-size:12px;
+
+  %% Layout tweaks
+  style FE_APP fill:#f2f8ff,stroke:#0b6,stroke-width:1px
+  style API fill:#fff6e6,stroke:#d2691e,stroke-width:1px
+  style WORKER fill:#fffefa,stroke:#b5651d
+  style STORE fill:#f3fff0,stroke:#2e8b57
+  style VERCEL fill:#eef7ff,stroke:#2563eb
+  style RENDER fill:#fff0f6,stroke:#a21caf

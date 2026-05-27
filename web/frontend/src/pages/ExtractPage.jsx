@@ -396,7 +396,7 @@ export default function ExtractPage() {
                 </div>
 
                 <div className={`w-full rounded-xl p-6 font-mono text-sm leading-relaxed border transition-colors duration-500 min-h-25
-                  ${status === 'VERIFIED' ? 'bg-[#0f1412] dark:bg-emerald-950/20 border-emerald-900/30 text-emerald-800 dark:text-emerald-100/90' : 'bg-[#181212] dark:bg-red-950/20 border-red-900/30 text-red-800 dark:text-red-100/80'}`}>
+                  ${status === 'VERIFIED' ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/30 text-emerald-800 dark:text-emerald-100/90' : 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/30 text-red-900 dark:text-red-100/80'}`}>
                   {extractedData?.text || 'No data recovered.'}
                 </div>
               </div>
