@@ -137,8 +137,13 @@ export default function VaultDashboardPage() {
                       </span>
                     </div>
                     <div className="flex justify-between border-b border-theme-border/50 pb-1">
-                      <span className="text-theme-text-muted">Energy</span>
-                      <span>{file.energy_percentile}%</span>
+                      <span className="text-theme-text-muted">Capacity</span>
+                      <span>
+                        {file.energy_percentile === 40 ? '60% (High Adaptivity)' :
+                         file.energy_percentile === 20 ? '80% (Medium Adaptivity)' :
+                         file.energy_percentile === 0 ? '100% (Low Adaptivity)' :
+                         `${100 - (file.energy_percentile || 0)}%`}
+                      </span>
                     </div>
                     <div className="flex justify-between border-b border-theme-border/50 pb-1">
                       <span className="text-theme-text-muted">Encryption</span>

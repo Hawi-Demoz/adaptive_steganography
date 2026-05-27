@@ -55,8 +55,8 @@ def plot_dashboard_waveform(
     y, _ = _read_wav_mono_int16(stego_wav)
     n = min(num_samples, x.size, y.size)
     idx = np.arange(n)
-    xf = x[:n].astype(np.float64) / 32768.0
-    yf = y[:n].astype(np.float64) / 32768.0
+    xf = x[:n].astype(np.float32) / 32768.0
+    yf = y[:n].astype(np.float32) / 32768.0
     diff = x[:n] != y[:n]
     lsb_changed = ((x[:n] ^ y[:n]) & 1) != 0
 
@@ -132,8 +132,8 @@ def plot_dashboard_spectrogram(
 ):
     x, sr = _read_wav_mono_int16(original_wav)
     y, _ = _read_wav_mono_int16(stego_wav)
-    x = x.astype(np.float64)
-    y = y.astype(np.float64)
+    x = x.astype(np.float32)
+    y = y.astype(np.float32)
     peak = max(np.max(np.abs(x)), np.max(np.abs(y)), 1e-12)
     x /= peak
     y /= peak
@@ -143,9 +143,9 @@ def plot_dashboard_spectrogram(
     f2, t2, Sy = spectrogram(y, fs=sr, nperseg=nperseg, noverlap=noverlap)
     f3, t3, Sn = spectrogram(noise, fs=sr, nperseg=nperseg, noverlap=noverlap)
 
-    Sx_db = 10 * np.log10(Sx + 1e-12)
-    Sy_db = 10 * np.log10(Sy + 1e-12)
-    Sn_db = 10 * np.log10(Sn + 1e-12)
+    Sx_db = 10 * np.log10(Sx + 1e-12); del Sx
+    Sy_db = 10 * np.log10(Sy + 1e-12); del Sy
+    Sn_db = 10 * np.log10(Sn + 1e-12); del Sn
     vmin = min(Sx_db.min(), Sy_db.min())
     vmax = max(Sx_db.max(), Sy_db.max())
 
@@ -303,8 +303,8 @@ def plot_dashboard_snr(
     x, sr = _read_wav_mono_int16(original_wav)
     y, _ = _read_wav_mono_int16(stego_wav)
     n = min(num_samples, x.size, y.size)
-    xf = x[:n].astype(np.float64) / 32768.0
-    yf = y[:n].astype(np.float64) / 32768.0
+    xf = x[:n].astype(np.float32) / 32768.0
+    yf = y[:n].astype(np.float32) / 32768.0
     noise = yf - xf
     snr_db = compute_snr_db(original_wav, stego_wav)
 
@@ -493,10 +493,10 @@ def plot_dashboard_detectability(
     x, sr = _read_wav_mono_int16(original_wav)
     y, _ = _read_wav_mono_int16(stego_wav)
     n = min(x.size, y.size)
-    xf = x[:n].astype(np.float64) / 32768.0
-    yf = y[:n].astype(np.float64) / 32768.0
+    xf = x[:n].astype(np.float32) / 32768.0
+    yf = y[:n].astype(np.float32) / 32768.0
     residual = yf - xf
-    diff = xf.astype(np.float64) - yf.astype(np.float64)
+    diff = xf.astype(np.float32) - yf.astype(np.float32)
     mse = float(np.mean(diff * diff))
 
     if detectability_score is None:

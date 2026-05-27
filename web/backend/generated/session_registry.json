@@ -286,5 +286,37 @@
     "payload_size": 22,
     "lsb_ber": 0.0008699169000434959,
     "password_protected": true
+  },
+  {
+    "id": "secret",
+    "timestamp": 1779862272.380027,
+    "cover_filename": "cover_5d9904a980ed4ef782539f9c3a1c0482.wav",
+    "stego_filename": "secret.wav",
+    "requested_stego_filename": "secret",
+    "original_cover_name": "sample.wav",
+    "energy_percentile": 40.0,
+    "robust_repeat": 1,
+    "encrypt": true,
+    "snr_db": 86.9992912794118,
+    "payload_ber": 0.0,
+    "payload_size": 665,
+    "lsb_ber": 0.010564911825528246,
+    "password_protected": true
+  },
+  {
+    "id": "hawi",
+    "timestamp": 1779901062.043227,
+    "cover_filename": "cover_a6cb9615b51c4041a02328bc688fe5c9.wav",
+    "stego_filename": "hawi.wav",
+    "requested_stego_filename": "hawi",
+    "original_cover_name": "sample.wav",
+    "energy_percentile": 40.0,
+    "robust_repeat": 1,
+    "encrypt": true,
+    "snr_db": 97.66749254738387,
+    "payload_ber": 0.0,
+    "payload_size": 16,
+    "lsb_ber": 0.0008737323250436866,
+    "password_protected": true
   }
 ]
