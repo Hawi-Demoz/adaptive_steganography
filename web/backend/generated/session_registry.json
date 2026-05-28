@@ -430,5 +430,37 @@
     "payload_size": 13,
     "lsb_ber": 0.0005875754500293788,
     "password_protected": true
+  },
+  {
+    "id": "boni",
+    "timestamp": 1779984782.866184,
+    "cover_filename": "cover_0e92f28e844e4625a4e7641f577b90ef.wav",
+    "stego_filename": "boni.wav",
+    "requested_stego_filename": "boni",
+    "original_cover_name": "sample.wav",
+    "energy_percentile": 40.0,
+    "robust_repeat": 1,
+    "encrypt": true,
+    "snr_db": 99.52798345577973,
+    "payload_ber": 0.0,
+    "payload_size": 10,
+    "lsb_ber": 0.0005570520500278526,
+    "password_protected": true
+  },
+  {
+    "id": "boni_1",
+    "timestamp": 1779984825.0658674,
+    "cover_filename": "cover_113224499e404c2c8298edf2c0fb2e24.wav",
+    "stego_filename": "boni_1.wav",
+    "requested_stego_filename": "boni",
+    "original_cover_name": "sample.wav",
+    "energy_percentile": 40.0,
+    "robust_repeat": 1,
+    "encrypt": true,
+    "snr_db": 99.64138199255147,
+    "payload_ber": 0.0,
+    "payload_size": 10,
+    "lsb_ber": 0.0005417903500270896,
+    "password_protected": true
   }
 ]
