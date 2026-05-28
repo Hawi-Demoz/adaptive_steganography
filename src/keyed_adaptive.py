@@ -72,13 +72,14 @@ def generate_order_indices(audio_path: str,
     rms, edges = _frame_rms(data_energy, frame_size=frame_size, hop_size=hop_size)
     scores = _normalize_scores(rms)
 
-    # Optional thresholding: attenuate frames below percentile by shrinking score
+    # Evaluate eligible frames based on energy percentile cutoff
     if energy_percentile > 0.0:
         thr = np.percentile(scores, energy_percentile)
-        # reduce low-energy scores to near-zero to push them late
-        low = scores < thr
-        scores = scores.copy()
-        scores[low] *= 0.1
+        eligible = scores >= thr
+        # strictly penalize ineligible frames so they are used last
+        scores = np.where(eligible, 1.0, 0.0)
+    else:
+        scores = np.ones_like(scores)
 
     # Build per-sample scores by mapping frame score to all samples in that frame
     per_sample_score = np.zeros(n, dtype=np.float32)
@@ -90,10 +91,11 @@ def generate_order_indices(audio_path: str,
     rng = np.random.default_rng(seed)
     rand = rng.random(n, dtype=np.float32)
 
-    # Compute ordering key: smaller is earlier. Avoid divide-by-zero via epsilon
-    eps = 1e-6
-    # Higher energy (score close to 1) -> rand/(1+score) is smaller on average
-    ord_key = rand / (per_sample_score + eps)
+    # Compute ordering key: smaller is earlier.
+    # Uniformly distribute within the eligible pool.
+    # Ineligible frames receive a +10 penalty, pushing them to the end of the order.
+    ord_key = rand.copy()
+    ord_key[per_sample_score < 0.5] += 10.0
 
     # Stable argsort to get deterministic ordering
     order = np.argsort(ord_key, kind='mergesort')
