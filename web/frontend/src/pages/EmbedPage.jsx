@@ -2,13 +2,14 @@ import { useState } from 'react';
 import axios from 'axios';
 import { useStego } from '../context/StegoContext';
 import { API_BASE } from '../lib/api';
-import { UploadCloud, Settings, Shield, FileAudio, KeyRound, Type, SlidersHorizontal, ArrowRight } from 'lucide-react';
+import { UploadCloud, Settings, Shield, FileAudio, KeyRound, Type, SlidersHorizontal, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 export default function EmbedPage() {
   const { refreshGeneratedFiles } = useStego();
   const [file, setFile] = useState(null);
   const [message, setMessage] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [encrypt, setEncrypt] = useState(true);
   const [adaptivityLevel, setAdaptivityLevel] = useState('medium'); // 'low', 'medium', 'high'
   const [useCustomName, setUseCustomName] = useState(false);
@@ -130,11 +131,18 @@ export default function EmbedPage() {
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 text-theme-text-muted" size={16} />
                 <input 
-                  type="password" 
-                  className="w-full bg-theme-base border border-theme-border rounded-xl pl-10 p-3 text-sm text-theme-text-main placeholder:text-theme-text-muted focus:outline-none focus:ring-1 focus:ring-theme-accent focus:border-theme-accent transition-all shadow-inner"
+                  type={showPassword ? "text" : "password"} 
+                  className="w-full bg-theme-base border border-theme-border rounded-xl pl-10 pr-10 p-3 text-sm text-theme-text-main placeholder:text-theme-text-muted focus:outline-none focus:ring-1 focus:ring-theme-accent focus:border-theme-accent transition-all shadow-inner"
                   placeholder="Cryptographic Seed / Key"
                   value={password} onChange={(e) => setPassword(e.target.value)}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-theme-text-muted hover:text-theme-text-main transition-colors"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
 
               <div className="relative">

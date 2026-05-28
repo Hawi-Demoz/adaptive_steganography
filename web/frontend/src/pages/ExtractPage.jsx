@@ -15,7 +15,9 @@ import {
   Activity,
   ArrowRight,
   ShieldCheck,
-  Unlock
+  Unlock,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 function getSessionEmbedParams(fileEntry) {
@@ -55,6 +57,7 @@ export default function ExtractPage() {
 
   const [file, setFile] = useState(null);
   const [key, setKey] = useState('');
+  const [showKey, setShowKey] = useState(false);
   const [status, setStatus] = useState('IDLE'); // IDLE, EXTRACTING, VERIFIED, INVALID KEY, CORRUPTED PAYLOAD
   const [extractedData, setExtractedData] = useState(null);
   
@@ -295,7 +298,16 @@ export default function ExtractPage() {
                   <KeyRound className="w-3 h-3" />
                   Cryptographic Seed / Key
                 </label>
-                <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="Enter decryption key..." className="w-full bg-theme-base border border-theme-border rounded-xl p-3 text-sm text-theme-text-main placeholder:text-theme-text-muted focus:outline-none focus:ring-1 focus:ring-theme-accent focus:border-theme-accent transition-all shadow-inner" />
+                <div className="relative">
+                  <input type={showKey ? "text" : "password"} value={key} onChange={(e) => setKey(e.target.value)} placeholder="Enter decryption key..." className="w-full bg-theme-base border border-theme-border rounded-xl p-3 pr-10 text-sm text-theme-text-main placeholder:text-theme-text-muted focus:outline-none focus:ring-1 focus:ring-theme-accent focus:border-theme-accent transition-all shadow-inner" />
+                  <button
+                    type="button"
+                    onClick={() => setShowKey(!showKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-theme-text-muted hover:text-theme-text-main transition-colors p-1"
+                  >
+                    {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
 
               {selectedFileMode === 'upload' && (
