@@ -462,5 +462,21 @@
     "payload_size": 10,
     "lsb_ber": 0.0005417903500270896,
     "password_protected": true
+  },
+  {
+    "id": "hhh",
+    "timestamp": 1779986655.9579847,
+    "cover_filename": "cover_748b46ddf45747fe81809a29a541a9e3.wav",
+    "stego_filename": "hhh.wav",
+    "requested_stego_filename": "hhh",
+    "original_cover_name": "sample.wav",
+    "energy_percentile": 40.0,
+    "robust_repeat": 1,
+    "encrypt": true,
+    "snr_db": 96.83997343394387,
+    "payload_ber": 0.0,
+    "payload_size": 38,
+    "lsb_ber": 0.0010645035750532252,
+    "password_protected": true
   }
 ]

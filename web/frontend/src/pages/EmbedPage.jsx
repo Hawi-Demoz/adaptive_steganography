@@ -167,7 +167,7 @@ export default function EmbedPage() {
               {/* Toggle Switch */}
               <div className="flex items-center justify-between p-3 rounded-lg border border-theme-border bg-theme-base/30">
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium text-theme-text-main">AES-256 Encryption</span>
+                  <span className="text-sm font-medium text-theme-text-main">AES-128 Encryption</span>
                   <span className="text-xs text-theme-text-muted">Encrypt payload before injection</span>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
