@@ -42,17 +42,18 @@ function App() {
             <NavItem to="/visuals" icon={<Activity size={18} strokeWidth={1.5}/>} label="Visualizations" />
           </nav>
 
-          {/* Theme Toggle Footer */}
-          <div className="p-4 border-t border-theme-border">
-            <button 
-              onClick={toggleTheme}
-              className="flex items-center justify-between w-full p-3 rounded-lg text-theme-text-muted hover:text-theme-text-main hover:bg-theme-border/30 transition-all text-sm font-medium"
-            >
-              <span>{theme === 'dark' ? 'Dark Mode' : 'Light Mode'}</span>
-              {theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}
-            </button>
-          </div>
+
         </aside>
+
+        {/* Fixed Theme Toggle — always visible top-right */}
+        <button
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          className="fixed top-4 right-4 z-50 flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium glass-panel border border-theme-border text-theme-text-muted hover:text-theme-text-main hover:border-theme-accent/50 transition-all duration-200 shadow-lg"
+        >
+          {theme === 'dark' ? <Moon size={15} /> : <Sun size={15} />}
+          <span>{theme === 'dark' ? 'Dark' : 'Light'}</span>
+        </button>
 
         {/* Main Content Area */}
         <main className="flex-1 p-8 md:p-12 overflow-y-auto relative z-10">
