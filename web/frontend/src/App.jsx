@@ -27,7 +27,7 @@ function App() {
       <Router>
         <div className="min-h-screen flex bg-theme-base text-theme-text-main transition-colors duration-500 bg-cinematic">
           {/* Sidebar Navigation */}
-          <aside className="w-64 glass-panel border-r border-theme-border flex flex-col z-10 sticky top-0 h-screen">
+          <aside className="w-64 glass-panel border-r border-theme-border flex flex-col z-10 relative">
           <div className="p-6">
             <h1 className="text-xl font-bold tracking-tight text-theme-text-main flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-theme-accent"></span>
