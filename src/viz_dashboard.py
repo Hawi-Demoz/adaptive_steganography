@@ -283,7 +283,7 @@ def plot_dashboard_energy_profile(
     _style_figure(
         fig,
         "Energy Profile Analysis",
-        f"Adaptivity threshold: {energy_percentile:.0f}% | Cover: {Path(original_wav).name}",
+        f"Capacity: {100 - energy_percentile:.0f}% | Cover: {Path(original_wav).name}",
     )
 
     if save_path:
