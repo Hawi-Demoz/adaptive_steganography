@@ -1,0 +1,11 @@
+{
+  "installCommand": "npm --prefix web/frontend ci",
+  "buildCommand": "npm run build",
+  "outputDirectory": "web/frontend/dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
