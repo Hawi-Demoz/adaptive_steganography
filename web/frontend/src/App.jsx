@@ -6,10 +6,11 @@ import VisualsPage from './pages/VisualsPage';
 import VaultSetupPage from './pages/VaultSetupPage';
 import VaultLoginPage from './pages/VaultLoginPage';
 import VaultDashboardPage from './pages/VaultDashboardPage';
+import UserGuidePage from './pages/UserGuidePage';
 import { StegoProvider } from './context/StegoContext';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import { Activity, Lock, Unlock, Moon, Sun, Shield } from 'lucide-react';
+import { Activity, Lock, Unlock, Moon, Sun, Shield, BookOpen } from 'lucide-react';
 
 function App() {
   const [theme, setTheme] = useState('dark'); // Default to cinematic dark
@@ -40,6 +41,7 @@ function App() {
             <NavItem to="/" icon={<Lock size={18} strokeWidth={1.5}/>} label="Embed Payload" />
             <NavItem to="/extract" icon={<Unlock size={18} strokeWidth={1.5}/>} label="Extract Data" />
             <NavItem to="/visuals" icon={<Activity size={18} strokeWidth={1.5}/>} label="Visualizations" />
+            <NavItem to="/guide" icon={<BookOpen size={18} strokeWidth={1.5}/>} label="User Guide" />
           </nav>
 
 
@@ -63,6 +65,7 @@ function App() {
               <Route path="/vault/login" element={<VaultLoginPage />} />
               <Route path="/vault" element={<ProtectedRoute><VaultDashboardPage /></ProtectedRoute>} />
               <Route path="/" element={<EmbedPage />} />
+              <Route path="/guide" element={<UserGuidePage />} />
               <Route path="/extract" element={<ProtectedRoute><ExtractPage /></ProtectedRoute>} />
               <Route path="/visuals" element={<ProtectedRoute><VisualsPage /></ProtectedRoute>} />
             </Routes>
