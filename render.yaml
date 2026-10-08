@@ -10,3 +10,5 @@ services:
         generateValue: true
       - key: FRONTEND_URL
         sync: false
+      - key: VAULT_PASSWORD
+        sync: false

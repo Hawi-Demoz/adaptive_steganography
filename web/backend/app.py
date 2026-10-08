@@ -2,6 +2,7 @@ import os
 import sys
 import uuid
 import hashlib
+import hmac
 import time
 import json
 from pathlib import Path
@@ -45,6 +46,7 @@ STEGO_FOLDER = os.environ.get('GENERATED_FOLDER', os.path.join(BACKEND_DIR, 'gen
 VISUALIZATION_FOLDER = os.environ.get('VISUALIZATION_FOLDER', os.path.join(ROOT_DIR, 'data', 'visualizations'))
 SESSION_REGISTRY_FILE = os.path.join(STEGO_FOLDER, 'session_registry.json')
 AUTH_FILE = os.path.join(BACKEND_DIR, 'data', 'auth.json')
+VAULT_PASSWORD = os.environ.get('VAULT_PASSWORD')
 
 # Ensure required directories exist on startup
 os.makedirs(os.path.join(BACKEND_DIR, 'data'), exist_ok=True)
@@ -148,7 +150,7 @@ def index():
 @app.route('/api/auth/status', methods=['GET'])
 def api_auth_status():
     """Check authentication status and if setup is required."""
-    setup_required = not os.path.exists(AUTH_FILE)
+    setup_required = VAULT_PASSWORD is None and not os.path.exists(AUTH_FILE)
     authenticated = session.get('authenticated', False)
     return jsonify({
         "setupRequired": setup_required,
@@ -158,7 +160,7 @@ def api_auth_status():
 @app.route('/api/auth/setup', methods=['POST'])
 def api_auth_setup():
     """First-time setup for the Vault."""
-    if os.path.exists(AUTH_FILE):
+    if VAULT_PASSWORD is not None or os.path.exists(AUTH_FILE):
         return jsonify({"error": "Vault is already initialized."}), 400
         
     password = request.json.get('password')
@@ -185,10 +187,14 @@ def api_auth_login():
         return jsonify({"error": "Password is required."}), 400
         
     try:
-        with open(AUTH_FILE, 'r') as f:
-            data = json.load(f)
-        
-        if check_password_hash(data.get('password_hash', ''), password):
+        if VAULT_PASSWORD is not None:
+            password_valid = hmac.compare_digest(password, VAULT_PASSWORD)
+        else:
+            with open(AUTH_FILE, 'r') as f:
+                data = json.load(f)
+            password_valid = check_password_hash(data.get('password_hash', ''), password)
+
+        if password_valid:
             session['authenticated'] = True
             return jsonify({"success": True})
         else:

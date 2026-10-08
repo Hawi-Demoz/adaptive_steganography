@@ -41,7 +41,7 @@ pip install -r requirements.txt
 
 ## Deploy
 
-- Render: create the web service from `render.yaml`. Set `FRONTEND_URL` to the deployed Vercel URL.
+- Render: create the web service from `render.yaml`. Set `FRONTEND_URL` to the deployed Vercel URL and `VAULT_PASSWORD` to the password users should enter. Keep `VAULT_PASSWORD` in Render Environment Variables only; do not commit it.
 - Vercel: use the repository root with `vercel.json`, and set `VITE_API_URL` to the deployed Render API URL.
 
 ## Start Here: What “hiding a message” means (no prior knowledge required)
