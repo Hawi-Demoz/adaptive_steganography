@@ -21,8 +21,8 @@ app = Flask(__name__)
 # Secret should be provided via env for production
 app.secret_key = os.environ.get('SECRET_KEY', 'vault-super-secret-key-1234')
 app.config.update(
-    SESSION_COOKIE_SAMESITE=os.environ.get('SESSION_COOKIE_SAMESITE', 'None'),
-    SESSION_COOKIE_SECURE=os.environ.get('SESSION_COOKIE_SECURE', '1') == '1',
+    SESSION_COOKIE_SAMESITE=os.environ.get('SESSION_COOKIE_SAMESITE', 'Lax'),
+    SESSION_COOKIE_SECURE=os.environ.get('SESSION_COOKIE_SECURE', '0') == '1',
 )
 
 # Configure CORS. If FRONTEND_URL is provided, restrict origins to it, otherwise allow all for convenience.
