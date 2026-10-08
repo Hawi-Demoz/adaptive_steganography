@@ -31,7 +31,11 @@ export default function VaultLoginPage() {
       }, 800);
       
     } catch (err) {
-      setError(err.response?.data?.error || 'Invalid credentials.');
+      setError(
+        err.response?.data?.error ||
+        err.message ||
+        'Invalid credentials.'
+      );
       setIsSubmitting(false);
       setPassword('');
     }
