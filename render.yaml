@@ -12,6 +12,12 @@ services:
         sync: false
       - key: AUTH_FILE
         value: /var/data/auth.json
+      - key: UPLOAD_FOLDER
+        value: /var/data/uploads
+      - key: GENERATED_FOLDER
+        value: /var/data/generated
+      - key: VISUALIZATION_FOLDER
+        value: /var/data/visualizations
     disk:
       name: adaptive-steganography-data
       mountPath: /var/data

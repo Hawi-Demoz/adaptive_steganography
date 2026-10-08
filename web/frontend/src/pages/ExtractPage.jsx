@@ -25,6 +25,7 @@ function getSessionEmbedParams(fileEntry) {
   return {
     encrypt: fileEntry.encrypt ?? fileEntry.metrics?.encrypt ?? true,
     energy_percentile: fileEntry.energy_percentile ?? fileEntry.metrics?.energyPercentile ?? 0,
+    robust_repeat: fileEntry.robust_repeat ?? fileEntry.metrics?.robustRepeat ?? 1,
   };
 }
 
@@ -128,6 +129,7 @@ export default function ExtractPage() {
 
     let encryptVal = 'true';
     let energyVal = '0.0';
+    let robustRepeatVal = '1';
 
     if (selectedFileMode === 'generated') {
       const sessionParams = getSessionEmbedParams(
@@ -136,6 +138,7 @@ export default function ExtractPage() {
       if (sessionParams) {
         encryptVal = sessionParams.encrypt ? 'true' : 'false';
         energyVal = String(sessionParams.energy_percentile);
+        robustRepeatVal = String(sessionParams.robust_repeat);
       }
     } else {
       encryptVal = manualEncrypt ? 'true' : 'false';
@@ -145,6 +148,7 @@ export default function ExtractPage() {
 
     formData.append('encrypt', encryptVal);
     formData.append('energy_percentile', energyVal);
+    formData.append('robust_repeat', robustRepeatVal);
 
     console.log("Selected stego:", selectedGeneratedFile);
     console.log("Uploaded file:", file);
