@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { useStego } from '../context/StegoContext';
+import { useAuth } from '../context/AuthContext';
 import { API_BASE } from '../lib/api';
 import { UploadCloud, Settings, Shield, FileAudio, KeyRound, Type, SlidersHorizontal, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 export default function EmbedPage() {
   const { refreshGeneratedFiles } = useStego();
+  const { isAuthenticated } = useAuth();
   const [file, setFile] = useState(null);
   const [message, setMessage] = useState('');
   const [password, setPassword] = useState('');
@@ -54,7 +56,13 @@ export default function EmbedPage() {
       const response = await axios.post(`${API_BASE}/api/embed`, formData);
       
       const stegoData = response.data;
-      await refreshGeneratedFiles();
+      if (isAuthenticated) {
+        try {
+          await refreshGeneratedFiles();
+        } catch (refreshError) {
+          console.error('Generated carrier created, but vault refresh failed', refreshError);
+        }
+      }
 
       // Optionally auto-download immediately (or allow them to grab it from extracting later)
       const downloadUrl = `${API_BASE}/api/download/${stegoData.stego_filename}`;

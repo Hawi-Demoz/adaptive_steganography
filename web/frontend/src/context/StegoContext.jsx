@@ -1,11 +1,13 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_BASE } from '../lib/api';
+import { useAuth } from './AuthContext';
 
 const StegoContext = createContext();
 
 export function StegoProvider({ children }) {
   const [generatedFiles, setGeneratedFiles] = useState([]);
+  const { isAuthenticated, loading: authLoading } = useAuth();
 
   const refreshGeneratedFiles = async () => {
     const res = await axios.get(`${API_BASE}/api/session/files`);
@@ -16,10 +18,15 @@ export function StegoProvider({ children }) {
   };
 
   useEffect(() => {
+    if (authLoading || !isAuthenticated) {
+      setGeneratedFiles([]);
+      return;
+    }
+
     refreshGeneratedFiles().catch((err) => {
       console.error("Failed to load session files", err);
     });
-  }, []);
+  }, [authLoading, isAuthenticated]);
 
   const addGeneratedFile = (fileData) => {
     setGeneratedFiles((prev) => {

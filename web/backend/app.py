@@ -20,13 +20,16 @@ sys.path.insert(0, str(BACKEND_DIR))
 app = Flask(__name__)
 # Secret should be provided via env for production
 app.secret_key = os.environ.get('SECRET_KEY', 'vault-super-secret-key-1234')
+FRONTEND_URL = os.environ.get('FRONTEND_URL', '*')
+local_frontends = {'*', 'http://localhost:5173', 'http://127.0.0.1:5173'}
+default_samesite = 'Lax' if FRONTEND_URL in local_frontends else 'None'
+default_secure = '0' if FRONTEND_URL in local_frontends else '1'
 app.config.update(
-    SESSION_COOKIE_SAMESITE=os.environ.get('SESSION_COOKIE_SAMESITE', 'Lax'),
-    SESSION_COOKIE_SECURE=os.environ.get('SESSION_COOKIE_SECURE', '0') == '1',
+    SESSION_COOKIE_SAMESITE=os.environ.get('SESSION_COOKIE_SAMESITE', default_samesite),
+    SESSION_COOKIE_SECURE=os.environ.get('SESSION_COOKIE_SECURE', default_secure) == '1',
 )
 
 # Configure CORS. If FRONTEND_URL is provided, restrict origins to it, otherwise allow all for convenience.
-FRONTEND_URL = os.environ.get('FRONTEND_URL', '*')
 try:
     CORS(app, resources={r"/api/*": {"origins": FRONTEND_URL}}, supports_credentials=True)
 except Exception:
