@@ -10,5 +10,9 @@ services:
         generateValue: true
       - key: FRONTEND_URL
         sync: false
-      - key: VAULT_PASSWORD
-        sync: false
+      - key: AUTH_FILE
+        value: /var/data/auth.json
+    disk:
+      name: adaptive-steganography-data
+      mountPath: /var/data
+      sizeGB: 1

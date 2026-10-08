@@ -1,0 +1,5 @@
+web/backend/data/auth.json
+web/backend/uploads/*
+web/backend/generated/*
+web/backend/__pycache__/
+src/__pycache__/
