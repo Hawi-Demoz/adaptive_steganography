@@ -21,7 +21,10 @@ app = Flask(__name__)
 # Secret should be provided via env for production
 app.secret_key = os.environ.get('SECRET_KEY', 'vault-super-secret-key-1234')
 FRONTEND_URL = os.environ.get('FRONTEND_URL', '*')
-local_frontends = {'*', 'http://localhost:5173', 'http://127.0.0.1:5173'}
+is_hosted = bool(os.environ.get('RENDER')) or os.environ.get('FLASK_ENV') == 'production'
+local_frontends = {'http://localhost:5173', 'http://127.0.0.1:5173'}
+if FRONTEND_URL == '*' and not is_hosted:
+    local_frontends.add('*')
 default_samesite = 'Lax' if FRONTEND_URL in local_frontends else 'None'
 default_secure = '0' if FRONTEND_URL in local_frontends else '1'
 app.config.update(

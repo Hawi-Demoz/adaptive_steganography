@@ -31,6 +31,10 @@ export function AuthProvider({ children }) {
   const login = async (password) => {
     const res = await axios.post(`${API_BASE}/api/auth/login`, { password });
     if (res.data.success) {
+      const status = await axios.get(`${API_BASE}/api/auth/status`);
+      if (!status.data.authenticated) {
+        throw new Error('Login succeeded but the authentication session was not saved.');
+      }
       setIsAuthenticated(true);
     }
     return res.data;
